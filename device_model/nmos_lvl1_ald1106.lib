@@ -1,0 +1,17 @@
+* nmoswrap_lvl1.spice
+* Level-1 NMOS model + wrapper subckt (for .include)
+
+.model ncg nmos (level=1
++ vto=0.75
++ gamma=1.09
++ phi=0.9499477708465783
++ tpg=1
++ kp=6.249608378152027e-05
++ lambda=0.19998491299329302
++ rsh=73.21306042358299
++ theta=0.34789260150862095
+)
+
+.subckt NMOSWRAP D G S B
+M0 D G S B ncg l=7.8e-6 w=0.138e-3 as=0.603e-8 ps=0.478e-3 ad=0.161e-8 nrd=.3 nrs=1
+.ends NMOSWRAP
