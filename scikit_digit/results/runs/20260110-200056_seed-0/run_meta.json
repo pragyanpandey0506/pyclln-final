@@ -1,0 +1,62 @@
+{
+  "script": "/home/ma-lab/Desktop/pyclln-final/scikit_digit/dense_trainer.py",
+  "argv": [
+    "./scikit_digit/dense_trainer.py",
+    "0",
+    "--epochs",
+    "20",
+    "--gamma",
+    "0.3",
+    "--margin",
+    "0.02",
+    "--delta",
+    "0.05",
+    "--solver",
+    "klu",
+    "--body-res",
+    "10",
+    "--input-vmin",
+    "0",
+    "--input-vmax",
+    "1"
+  ],
+  "seed": 0,
+  "timestamp": "2026-01-10T20:00:56.054362",
+  "dataset": "sklearn_digits",
+  "input_shape": [
+    8,
+    8
+  ],
+  "train_count": 1437,
+  "test_count": 360,
+  "gamma": 0.3,
+  "margin": 0.02,
+  "delta": 0.05,
+  "epochs_base": 20,
+  "epochs_max": 50,
+  "extend_if_hinge_active_frac_gt": 0.4,
+  "input_vmin": 0.0,
+  "input_vmax": 1.0,
+  "rails": {
+    "vminus": 0.0,
+    "vplus": 0.45
+  },
+  "solver": "klu",
+  "body_source": true,
+  "body_res": 10.0,
+  "update_eps": 0.0,
+  "device": {
+    "include_path": "/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib",
+    "subckt": "NMOSWRAP"
+  },
+  "topology": {
+    "type": "dense_input_to_output",
+    "Nin": 64,
+    "out": 10,
+    "edges": 640
+  },
+  "diagnostics": {
+    "diag_subset": 200
+  },
+  "diode_source_to_vplus": false
+}

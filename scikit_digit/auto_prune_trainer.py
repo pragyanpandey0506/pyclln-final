@@ -8,7 +8,7 @@ Key behavior:
   - Topology: loaded from NPZ (digits_8x8_dense_io_x3), with parallel edges per input/output.
   - Init VG: random in [VG_INIT_LO, VG_INIT_HI] or fixed VG_INIT_SINGLE via --vg-init.
   - Per-sample training:
-      1) Free phase:   RS all = 1e12 (outputs effectively unclamped), run .op
+      1) Free phase:   RS all = 1e9 (outputs effectively unclamped), run .op
       2) Compute hinge. If inactive, skip clamp + update.
       3) Clamp phase: clamp only y and rival outputs via RS=RS_CLAMP and nudged VOUT sources.
       4) Update: dVG_e = -gamma * ( (dV_e^C)^2 - (dV_e^F)^2 ), clip to [0.4, 10.0]
@@ -42,6 +42,7 @@ import argparse
 import json
 import os
 import random
+import re
 import sys
 import time
 from datetime import datetime
@@ -58,7 +59,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from topology.topology_io import Topology, load_topology_npz
+from topology.topology_io import Topology, load_topology_npz, save_topology_npz, validate_topology
 
 
 # -------------------------
@@ -136,6 +137,12 @@ def parse_args():
 
     # Training epochs
     p.add_argument("--epochs", type=int, default=20, help="Total epochs (default 20).")
+    p.add_argument(
+        "--vg-cutoff-epochs",
+        type=int,
+        default=4,
+        help="Consecutive epochs below vg_cutoff before pruning (default 4).",
+    )
 
     # Learning hyperparams
     p.add_argument("--gamma", type=float, default=0.3)
@@ -407,6 +414,69 @@ def compute_vg_saturation_stats(vg_unique: np.ndarray) -> Dict[str, float]:
     }
 
 
+def load_model_vto(model_path: Path) -> float:
+    text = model_path.read_text()
+    match = re.search(r"\bvto\s*=\s*([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?)", text, flags=re.IGNORECASE)
+    if not match:
+        raise ValueError(f"Could not find vto in model card: {model_path}")
+    return float(match.group(1))
+
+
+def update_vg_below_counts(vg_unique: np.ndarray, below_counts: np.ndarray, cutoff: float) -> np.ndarray:
+    if vg_unique.size != below_counts.size:
+        raise ValueError("vg_unique and below_counts size mismatch")
+    below = vg_unique < cutoff
+    return np.where(below, below_counts + 1, 0)
+
+
+def prune_topology(
+    topo: Topology,
+    vg_unique: np.ndarray,
+    below_counts: np.ndarray,
+    prune_mask: np.ndarray,
+    vg_cutoff: float,
+    vg_cutoff_epochs: int,
+) -> Tuple[Topology, np.ndarray, np.ndarray, np.ndarray]:
+    if prune_mask.size != vg_unique.size:
+        raise ValueError("prune_mask size mismatch with vg_unique")
+
+    keep_mask = ~prune_mask
+    if not np.any(keep_mask):
+        raise RuntimeError("All edges pruned; stopping training.")
+
+    pruned_idx = np.flatnonzero(prune_mask)
+    new_meta = dict(topo.meta) if isinstance(topo.meta, dict) else {}
+    new_meta["edges"] = int(np.sum(keep_mask))
+    new_meta["auto_prune"] = {
+        "vg_cutoff": float(vg_cutoff),
+        "vg_cutoff_epochs": int(vg_cutoff_epochs),
+        "removed": int(pruned_idx.size),
+        "remaining": int(np.sum(keep_mask)),
+    }
+
+    new_topo = Topology(
+        negref=topo.negref,
+        posref=topo.posref,
+        input_nodes=topo.input_nodes,
+        out_nodes=topo.out_nodes,
+        edges_D=topo.edges_D[keep_mask],
+        edges_S=topo.edges_S[keep_mask],
+        meta=new_meta,
+    )
+    validate_topology(new_topo)
+    return new_topo, vg_unique[keep_mask], below_counts[keep_mask], pruned_idx
+
+
+def reload_ngspice(ng: NgSpiceShared, netlist: str, vg_unique: np.ndarray, K: int):
+    try:
+        ng.remove_circuit()
+    except Exception:
+        pass
+    ng.load_circuit(netlist)
+    restore_gate_voltages(ng, vg_unique)
+    mk_free_all(ng, K)
+
+
 def save_plots(run_dir: Path):
     def _load(name: str):
         p = run_dir / name
@@ -512,6 +582,11 @@ def main():
     vg_init_single = float(args.vg_init_fixed)
     if vg_init_mode == "random" and vg_init_hi <= vg_init_lo:
         raise ValueError("--vg-init-hi must be > --vg-init-lo for random init")
+    vg_cutoff_epochs = int(args.vg_cutoff_epochs)
+    if vg_cutoff_epochs < 1:
+        raise ValueError("--vg-cutoff-epochs must be >= 1")
+    model_vto = load_model_vto(Path(DEVICE_LIB_PATH))
+    vg_cutoff = 0.8 * model_vto
 
     # Dataset: scikit digits 8x8 only
     digits = load_digits()
@@ -553,6 +628,7 @@ def main():
         vg_unique = np.full((topo.num_edges,), vg_init_single, dtype=float)
     else:
         vg_unique = np.random.uniform(vg_init_lo, vg_init_hi, size=(topo.num_edges,)).astype(float)
+    below_counts = np.zeros(topo.num_edges, dtype=int)
 
     # Run directory
     results_dir = Path(__file__).resolve().parent / "results"
@@ -574,6 +650,7 @@ def main():
         f"in=[{vmin},{vmax}] Nin={Nin} K={K} rails=[{vminus_val},{vplus_val}] "
         f"solver={solver} body_tie={body_tie} body_res={body_res} rs_clamp={RS_CLAMP} "
         f"vg_init={vg_init_mode} "
+        f"vg_cutoff={vg_cutoff:.6g} vg_cutoff_epochs={vg_cutoff_epochs} "
         f"epochs={epochs} "
         f"device_include={DEVICE_LIB_PATH} subckt={DEVICE_SUBCKT} "
         f"topology={TOPOLOGY_PATH.name}"
@@ -615,6 +692,9 @@ def main():
         "body_tie": body_tie,
         "body_res": body_res,
         "rs_clamp": RS_CLAMP,
+        "model_vto": model_vto,
+        "vg_cutoff": vg_cutoff,
+        "vg_cutoff_epochs": vg_cutoff_epochs,
         "vg_init": {
             "mode": vg_init_mode,
             "lo": vg_init_lo,
@@ -944,6 +1024,9 @@ def main():
                 "body_tie": body_tie,
                 "body_res": body_res,
                 "rs_clamp": RS_CLAMP,
+                "model_vto": model_vto,
+                "vg_cutoff": vg_cutoff,
+                "vg_cutoff_epochs": vg_cutoff_epochs,
                 "vg_init": {
                     "mode": vg_init_mode,
                     "lo": vg_init_lo,
@@ -1001,6 +1084,50 @@ def main():
         except Exception:
             pass
 
+        below_counts = update_vg_below_counts(vg_unique, below_counts, vg_cutoff)
+        prune_mask = below_counts >= vg_cutoff_epochs
+        if np.any(prune_mask):
+            pruned_count = int(np.sum(prune_mask))
+            topo, vg_unique, below_counts, _ = prune_topology(
+                topo=topo,
+                vg_unique=vg_unique,
+                below_counts=below_counts,
+                prune_mask=prune_mask,
+                vg_cutoff=vg_cutoff,
+                vg_cutoff_epochs=vg_cutoff_epochs,
+            )
+            K = topo.K
+            eD = topo.edges_D
+            eS = topo.edges_S
+
+            netlist = mk_netlist(
+                topo=topo,
+                vg_unique=vg_unique,
+                vminus_val=vminus_val,
+                vplus_val=vplus_val,
+                solver=solver,
+                body_res=body_res,
+                body_tie=body_tie,
+            )
+            reload_ngspice(ng, netlist, vg_unique, K)
+
+            net_nodes = [topo.negref, topo.posref] + topo.out_nodes.tolist() + topo.input_nodes.tolist()
+            nodes_list = np.asarray(sorted(set(net_nodes)), dtype=int)
+            index_of = np.full(nodes_list.max() + 1, -1, dtype=int)
+            index_of[nodes_list] = np.arange(nodes_list.size, dtype=int)
+
+            print(
+                f"[prune] epoch {ep}: removed {pruned_count} edges "
+                f"(vg < {vg_cutoff:.6g} for {vg_cutoff_epochs} epochs), "
+                f"remaining={topo.num_edges}",
+                flush=True,
+            )
+
+
+    try:
+        save_topology_npz(run_dir / "topology_final_pruned.npz", topo)
+    except Exception:
+        pass
 
     # latest symlink
     latest = results_dir / "latest"
