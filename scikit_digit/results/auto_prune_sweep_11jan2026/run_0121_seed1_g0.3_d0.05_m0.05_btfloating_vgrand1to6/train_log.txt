@@ -1,0 +1,765 @@
+=== RUN START (scikit_digits_dense_io_hinge) ===
+seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz
+train=1437 test=360 edges=640
+Unsupported Ngspice version 41
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[epoch 0] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.1194 hinge=0.078674 test_satisfy=0.0000
+[epoch 1/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.1969 hinge=0.067970 hinge_frac=1.000 free=1437 clamp=1437 skipped=0 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 1/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.3667 hinge=0.059705 test_satisfy=0.0000 test_gap_mean=-0.0097 | timing total=309.97s free=131.23s clamp=131.89s upd=3.67s
+[epoch 2/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.4489 hinge=0.054560 hinge_frac=1.000 free=1437 clamp=1437 skipped=0 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 2/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.5750 hinge=0.049074 test_satisfy=0.0000 test_gap_mean=0.0009 | timing total=304.03s free=127.83s clamp=128.55s upd=3.72s
+[epoch 3/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.5985 hinge=0.045827 hinge_frac=0.997 free=1437 clamp=1432 skipped=5 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 3/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.6833 hinge=0.041691 test_satisfy=0.0083 test_gap_mean=0.0083 | timing total=272.13s free=117.17s clamp=116.81s upd=3.59s
+[epoch 4/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.7029 hinge=0.039339 hinge_frac=0.980 free=1437 clamp=1408 skipped=29 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 4/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.7528 hinge=0.036138 test_satisfy=0.0111 test_gap_mean=0.0139 | timing total=285.12s free=121.41s clamp=118.68s upd=3.69s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 4: removed 1 edges (vg < 0.75 for 4 epochs), remaining=639
+[epoch 5/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.7745 hinge=0.034208 hinge_frac=0.955 free=1437 clamp=1372 skipped=65 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 5/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.8028 hinge=0.031598 test_satisfy=0.0528 test_gap_mean=0.0186 | timing total=295.45s free=129.90s clamp=123.56s upd=3.87s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 5: removed 4 edges (vg < 0.75 for 4 epochs), remaining=635
+[epoch 6/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.8107 hinge=0.030231 hinge_frac=0.900 free=1437 clamp=1293 skipped=144 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 6/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.8417 hinge=0.028226 test_satisfy=0.0778 test_gap_mean=0.0222 | timing total=280.61s free=125.82s clamp=112.81s upd=3.52s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 6: removed 5 edges (vg < 0.75 for 4 epochs), remaining=630
+[epoch 7/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.8413 hinge=0.027201 hinge_frac=0.852 free=1437 clamp=1225 skipped=212 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 7/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.8556 hinge=0.025371 test_satisfy=0.1167 test_gap_mean=0.0255 | timing total=285.30s free=131.13s clamp=111.49s upd=3.60s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 7: removed 4 edges (vg < 0.75 for 4 epochs), remaining=626
+[epoch 8/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.8566 hinge=0.024843 hinge_frac=0.792 free=1437 clamp=1138 skipped=299 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 8/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.8778 hinge=0.023208 test_satisfy=0.1500 test_gap_mean=0.0279 | timing total=302.05s free=141.50s clamp=111.79s upd=3.27s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 8: removed 1 edges (vg < 0.75 for 4 epochs), remaining=625
+[epoch 9/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.8754 hinge=0.023020 hinge_frac=0.765 free=1437 clamp=1099 skipped=338 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 9/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.8778 hinge=0.021347 test_satisfy=0.2000 test_gap_mean=0.0303 | timing total=308.14s free=146.97s clamp=112.36s upd=3.10s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 9: removed 3 edges (vg < 0.75 for 4 epochs), remaining=622
+[epoch 10/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.8900 hinge=0.021470 hinge_frac=0.735 free=1437 clamp=1056 skipped=381 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 10/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.8833 hinge=0.019807 test_satisfy=0.2444 test_gap_mean=0.0324 | timing total=283.68s free=135.28s clamp=99.18s upd=2.87s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 10: removed 2 edges (vg < 0.75 for 4 epochs), remaining=620
+[epoch 11/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.8963 hinge=0.020213 hinge_frac=0.708 free=1437 clamp=1017 skipped=420 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 11/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9000 hinge=0.018629 test_satisfy=0.2694 test_gap_mean=0.0340 | timing total=295.53s free=143.87s clamp=101.63s upd=2.95s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 11: removed 2 edges (vg < 0.75 for 4 epochs), remaining=618
+[epoch 12/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9012 hinge=0.019100 hinge_frac=0.691 free=1437 clamp=993 skipped=444 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 12/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9139 hinge=0.017665 test_satisfy=0.3056 test_gap_mean=0.0355 | timing total=280.49s free=138.48s clamp=95.51s upd=2.81s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 12: removed 2 edges (vg < 0.75 for 4 epochs), remaining=616
+[epoch 13/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9081 hinge=0.018170 hinge_frac=0.662 free=1437 clamp=952 skipped=485 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 13/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9139 hinge=0.016693 test_satisfy=0.3528 test_gap_mean=0.0371 | timing total=231.28s free=115.53s clamp=76.27s upd=2.33s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 13: removed 5 edges (vg < 0.75 for 4 epochs), remaining=611
+[epoch 14/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9109 hinge=0.017388 hinge_frac=0.643 free=1437 clamp=924 skipped=513 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 14/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9250 hinge=0.016004 test_satisfy=0.3389 test_gap_mean=0.0382 | timing total=251.38s free=124.91s clamp=80.14s upd=2.54s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 14: removed 8 edges (vg < 0.75 for 4 epochs), remaining=603
+[epoch 15/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9186 hinge=0.016636 hinge_frac=0.621 free=1437 clamp=893 skipped=544 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 15/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9278 hinge=0.015380 test_satisfy=0.3667 test_gap_mean=0.0391 | timing total=255.12s free=130.09s clamp=80.69s upd=2.45s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 15: removed 2 edges (vg < 0.75 for 4 epochs), remaining=601
+[epoch 16/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9186 hinge=0.015995 hinge_frac=0.615 free=1437 clamp=884 skipped=553 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 16/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9278 hinge=0.014833 test_satisfy=0.3833 test_gap_mean=0.0400 | timing total=242.28s free=124.84s clamp=76.50s upd=2.31s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 16: removed 2 edges (vg < 0.75 for 4 epochs), remaining=599
+[epoch 17/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9221 hinge=0.015435 hinge_frac=0.605 free=1437 clamp=869 skipped=568 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 17/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9333 hinge=0.014329 test_satisfy=0.4111 test_gap_mean=0.0410 | timing total=222.39s free=112.99s clamp=67.98s upd=2.16s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 17: removed 2 edges (vg < 0.75 for 4 epochs), remaining=597
+[epoch 18/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9255 hinge=0.014864 hinge_frac=0.591 free=1437 clamp=849 skipped=588 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 18/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9278 hinge=0.013840 test_satisfy=0.4333 test_gap_mean=0.0422 | timing total=231.01s free=119.13s clamp=70.19s upd=2.20s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 18: removed 2 edges (vg < 0.75 for 4 epochs), remaining=595
+[epoch 19/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9290 hinge=0.014420 hinge_frac=0.562 free=1437 clamp=808 skipped=629 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 19/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9361 hinge=0.013466 test_satisfy=0.4528 test_gap_mean=0.0429 | timing total=225.63s free=121.25s clamp=67.56s upd=2.13s
+[epoch 20/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9304 hinge=0.014011 hinge_frac=0.547 free=1437 clamp=786 skipped=651 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 20/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9417 hinge=0.013162 test_satisfy=0.4667 test_gap_mean=0.0434 | timing total=218.14s free=118.26s clamp=64.79s upd=2.03s
+[epoch 21/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9325 hinge=0.013630 hinge_frac=0.540 free=1437 clamp=776 skipped=661 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 21/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9444 hinge=0.012885 test_satisfy=0.4861 test_gap_mean=0.0442 | timing total=217.89s free=118.37s clamp=63.86s upd=1.93s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 21: removed 2 edges (vg < 0.75 for 4 epochs), remaining=593
+[epoch 22/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9353 hinge=0.013309 hinge_frac=0.521 free=1437 clamp=748 skipped=689 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 22/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9444 hinge=0.012573 test_satisfy=0.5000 test_gap_mean=0.0449 | timing total=193.90s free=105.29s clamp=55.04s upd=1.78s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 22: removed 5 edges (vg < 0.75 for 4 epochs), remaining=588
+[epoch 23/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9374 hinge=0.013005 hinge_frac=0.514 free=1437 clamp=738 skipped=699 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 23/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9444 hinge=0.012376 test_satisfy=0.5028 test_gap_mean=0.0453 | timing total=222.30s free=119.32s clamp=61.58s upd=1.99s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 23: removed 1 edges (vg < 0.75 for 4 epochs), remaining=587
+[epoch 24/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9381 hinge=0.012732 hinge_frac=0.503 free=1437 clamp=723 skipped=714 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 24/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9444 hinge=0.012205 test_satisfy=0.5056 test_gap_mean=0.0459 | timing total=232.38s free=126.01s clamp=63.50s upd=2.24s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 24: removed 4 edges (vg < 0.75 for 4 epochs), remaining=583
+[epoch 25/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9388 hinge=0.012462 hinge_frac=0.493 free=1437 clamp=708 skipped=729 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 25/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.011882 test_satisfy=0.5278 test_gap_mean=0.0466 | timing total=197.63s free=108.88s clamp=53.49s upd=1.92s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 25: removed 2 edges (vg < 0.75 for 4 epochs), remaining=581
+[epoch 26/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9388 hinge=0.012224 hinge_frac=0.486 free=1437 clamp=699 skipped=738 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 26/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9444 hinge=0.011747 test_satisfy=0.5250 test_gap_mean=0.0469 | timing total=215.86s free=118.47s clamp=57.58s upd=1.90s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 26: removed 3 edges (vg < 0.75 for 4 epochs), remaining=578
+[epoch 27/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9415 hinge=0.011984 hinge_frac=0.482 free=1437 clamp=693 skipped=744 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 27/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9444 hinge=0.011556 test_satisfy=0.5361 test_gap_mean=0.0475 | timing total=220.42s free=121.22s clamp=58.13s upd=2.02s
+[epoch 28/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9395 hinge=0.011756 hinge_frac=0.473 free=1437 clamp=679 skipped=758 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 28/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9444 hinge=0.011426 test_satisfy=0.5333 test_gap_mean=0.0477 | timing total=204.43s free=115.60s clamp=54.69s upd=1.81s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 28: removed 1 edges (vg < 0.75 for 4 epochs), remaining=577
+[epoch 29/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9408 hinge=0.011530 hinge_frac=0.473 free=1437 clamp=680 skipped=757 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 29/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9472 hinge=0.011241 test_satisfy=0.5361 test_gap_mean=0.0484 | timing total=187.17s free=100.42s clamp=47.39s upd=1.50s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 29: removed 1 edges (vg < 0.75 for 4 epochs), remaining=576
+[epoch 30/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9429 hinge=0.011351 hinge_frac=0.459 free=1437 clamp=660 skipped=777 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 30/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9472 hinge=0.011090 test_satisfy=0.5500 test_gap_mean=0.0487 | timing total=189.34s free=104.70s clamp=48.12s upd=1.62s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 30: removed 2 edges (vg < 0.75 for 4 epochs), remaining=574
+[epoch 31/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9429 hinge=0.011153 hinge_frac=0.449 free=1437 clamp=645 skipped=792 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 31/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9472 hinge=0.010945 test_satisfy=0.5528 test_gap_mean=0.0492 | timing total=192.07s free=106.47s clamp=47.79s upd=1.51s
+[epoch 32/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9443 hinge=0.010981 hinge_frac=0.446 free=1437 clamp=641 skipped=796 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 32/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.010815 test_satisfy=0.5667 test_gap_mean=0.0496 | timing total=185.57s free=102.85s clamp=45.97s upd=1.52s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 32: removed 5 edges (vg < 0.75 for 4 epochs), remaining=569
+[epoch 33/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9464 hinge=0.010817 hinge_frac=0.441 free=1437 clamp=633 skipped=804 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 33/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.010683 test_satisfy=0.5667 test_gap_mean=0.0501 | timing total=166.70s free=90.80s clamp=40.16s upd=1.40s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 33: removed 4 edges (vg < 0.75 for 4 epochs), remaining=565
+[epoch 34/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9443 hinge=0.010652 hinge_frac=0.431 free=1437 clamp=620 skipped=817 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 34/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.010613 test_satisfy=0.5694 test_gap_mean=0.0501 | timing total=186.71s free=104.29s clamp=45.10s upd=1.41s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 34: removed 3 edges (vg < 0.75 for 4 epochs), remaining=562
+[epoch 35/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9443 hinge=0.010499 hinge_frac=0.425 free=1437 clamp=611 skipped=826 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 35/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.010456 test_satisfy=0.5750 test_gap_mean=0.0507 | timing total=180.21s free=100.69s clamp=42.88s upd=1.58s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 35: removed 3 edges (vg < 0.75 for 4 epochs), remaining=559
+[epoch 36/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9471 hinge=0.010360 hinge_frac=0.420 free=1437 clamp=604 skipped=833 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 36/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.010358 test_satisfy=0.5722 test_gap_mean=0.0510 | timing total=176.42s free=98.41s clamp=41.53s upd=1.42s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 36: removed 2 edges (vg < 0.75 for 4 epochs), remaining=557
+[epoch 37/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9478 hinge=0.010228 hinge_frac=0.420 free=1437 clamp=603 skipped=834 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 37/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.010250 test_satisfy=0.5806 test_gap_mean=0.0514 | timing total=153.44s free=87.67s clamp=36.88s upd=1.31s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 37: removed 1 edges (vg < 0.75 for 4 epochs), remaining=556
+[epoch 38/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9464 hinge=0.010115 hinge_frac=0.406 free=1437 clamp=584 skipped=853 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 38/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.010150 test_satisfy=0.5833 test_gap_mean=0.0519 | timing total=155.67s free=88.42s clamp=36.12s upd=1.19s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 38: removed 1 edges (vg < 0.75 for 4 epochs), remaining=555
+[epoch 39/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9464 hinge=0.009997 hinge_frac=0.394 free=1437 clamp=566 skipped=871 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 39/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.010050 test_satisfy=0.5917 test_gap_mean=0.0521 | timing total=178.00s free=103.21s clamp=40.76s upd=1.50s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 39: removed 1 edges (vg < 0.75 for 4 epochs), remaining=554
+[epoch 40/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9485 hinge=0.009891 hinge_frac=0.391 free=1437 clamp=562 skipped=875 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 40/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.009981 test_satisfy=0.5944 test_gap_mean=0.0523 | timing total=151.35s free=88.22s clamp=34.56s upd=1.28s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 40: removed 3 edges (vg < 0.75 for 4 epochs), remaining=551
+[epoch 41/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9506 hinge=0.009776 hinge_frac=0.390 free=1437 clamp=561 skipped=876 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 41/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.009938 test_satisfy=0.5889 test_gap_mean=0.0526 | timing total=176.21s free=101.33s clamp=39.61s upd=1.37s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 41: removed 4 edges (vg < 0.75 for 4 epochs), remaining=547
+[epoch 42/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9499 hinge=0.009680 hinge_frac=0.383 free=1437 clamp=551 skipped=886 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 42/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.009852 test_satisfy=0.5917 test_gap_mean=0.0528 | timing total=167.69s free=98.43s clamp=37.82s upd=1.26s
+[epoch 43/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9527 hinge=0.009584 hinge_frac=0.387 free=1437 clamp=556 skipped=881 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 43/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.009775 test_satisfy=0.5944 test_gap_mean=0.0532 | timing total=172.58s free=100.07s clamp=38.71s upd=1.41s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 43: removed 2 edges (vg < 0.75 for 4 epochs), remaining=545
+[epoch 44/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9506 hinge=0.009522 hinge_frac=0.374 free=1437 clamp=538 skipped=899 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 44/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.009709 test_satisfy=0.6000 test_gap_mean=0.0535 | timing total=164.53s free=96.85s clamp=36.32s upd=1.28s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 44: removed 2 edges (vg < 0.75 for 4 epochs), remaining=543
+[epoch 45/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9513 hinge=0.009420 hinge_frac=0.371 free=1437 clamp=533 skipped=904 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 45/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.009648 test_satisfy=0.6000 test_gap_mean=0.0537 | timing total=149.81s free=85.71s clamp=31.87s upd=1.14s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 45: removed 2 edges (vg < 0.75 for 4 epochs), remaining=541
+[epoch 46/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9548 hinge=0.009345 hinge_frac=0.371 free=1437 clamp=533 skipped=904 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 46/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.009598 test_satisfy=0.6028 test_gap_mean=0.0538 | timing total=145.74s free=86.91s clamp=32.14s upd=1.15s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 46: removed 1 edges (vg < 0.75 for 4 epochs), remaining=540
+[epoch 47/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9520 hinge=0.009266 hinge_frac=0.372 free=1437 clamp=535 skipped=902 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 47/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.009521 test_satisfy=0.6056 test_gap_mean=0.0542 | timing total=142.97s free=83.11s clamp=30.80s upd=1.07s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 47: removed 1 edges (vg < 0.75 for 4 epochs), remaining=539
+[epoch 48/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9534 hinge=0.009179 hinge_frac=0.370 free=1437 clamp=531 skipped=906 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 48/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.009484 test_satisfy=0.6111 test_gap_mean=0.0544 | timing total=137.15s free=81.33s clamp=29.97s upd=1.04s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 48: removed 2 edges (vg < 0.75 for 4 epochs), remaining=537
+[epoch 49/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9541 hinge=0.009098 hinge_frac=0.361 free=1437 clamp=519 skipped=918 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 49/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.009400 test_satisfy=0.6139 test_gap_mean=0.0548 | timing total=162.91s free=98.10s clamp=35.44s upd=1.20s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 49: removed 1 edges (vg < 0.75 for 4 epochs), remaining=536
+[epoch 50/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9562 hinge=0.009016 hinge_frac=0.361 free=1437 clamp=519 skipped=918 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 50/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.009375 test_satisfy=0.6056 test_gap_mean=0.0549 | timing total=156.60s free=91.08s clamp=32.89s upd=1.28s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 50: removed 3 edges (vg < 0.75 for 4 epochs), remaining=533
+[epoch 51/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9562 hinge=0.008945 hinge_frac=0.362 free=1437 clamp=520 skipped=917 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 51/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.009327 test_satisfy=0.6167 test_gap_mean=0.0551 | timing total=163.34s free=95.64s clamp=34.68s upd=1.18s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 51: removed 3 edges (vg < 0.75 for 4 epochs), remaining=530
+[epoch 52/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9582 hinge=0.008879 hinge_frac=0.357 free=1437 clamp=513 skipped=924 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 52/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.009295 test_satisfy=0.6222 test_gap_mean=0.0553 | timing total=161.88s free=94.74s clamp=33.87s upd=1.24s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 52: removed 1 edges (vg < 0.75 for 4 epochs), remaining=529
+[epoch 53/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9569 hinge=0.008796 hinge_frac=0.355 free=1437 clamp=510 skipped=927 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 53/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.009220 test_satisfy=0.6194 test_gap_mean=0.0557 | timing total=140.71s free=81.93s clamp=29.07s upd=0.99s
+[epoch 54/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9562 hinge=0.008739 hinge_frac=0.349 free=1437 clamp=502 skipped=935 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 54/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.009165 test_satisfy=0.6306 test_gap_mean=0.0558 | timing total=146.77s free=86.08s clamp=30.12s upd=1.18s
+[epoch 55/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9562 hinge=0.008677 hinge_frac=0.348 free=1437 clamp=500 skipped=937 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 55/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.009116 test_satisfy=0.6306 test_gap_mean=0.0560 | timing total=149.73s free=87.84s clamp=30.84s upd=1.03s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 55: removed 1 edges (vg < 0.75 for 4 epochs), remaining=528
+[epoch 56/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9569 hinge=0.008603 hinge_frac=0.344 free=1437 clamp=495 skipped=942 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 56/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.009069 test_satisfy=0.6333 test_gap_mean=0.0562 | timing total=151.17s free=88.83s clamp=30.53s upd=1.16s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 56: removed 3 edges (vg < 0.75 for 4 epochs), remaining=525
+[epoch 57/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9576 hinge=0.008545 hinge_frac=0.344 free=1437 clamp=494 skipped=943 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 57/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9556 hinge=0.009004 test_satisfy=0.6361 test_gap_mean=0.0566 | timing total=158.38s free=94.75s clamp=32.36s upd=1.15s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 57: removed 1 edges (vg < 0.75 for 4 epochs), remaining=524
+[epoch 58/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9582 hinge=0.008496 hinge_frac=0.335 free=1437 clamp=481 skipped=956 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 58/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9500 hinge=0.008977 test_satisfy=0.6361 test_gap_mean=0.0567 | timing total=160.16s free=95.62s clamp=31.93s upd=1.09s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 58: removed 3 edges (vg < 0.75 for 4 epochs), remaining=521
+[epoch 59/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9569 hinge=0.008430 hinge_frac=0.336 free=1437 clamp=483 skipped=954 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 59/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9583 hinge=0.008952 test_satisfy=0.6361 test_gap_mean=0.0568 | timing total=157.64s free=94.32s clamp=31.68s upd=1.15s
+[epoch 60/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9589 hinge=0.008388 hinge_frac=0.331 free=1437 clamp=476 skipped=961 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 60/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008897 test_satisfy=0.6306 test_gap_mean=0.0570 | timing total=152.95s free=94.33s clamp=31.26s upd=1.19s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 60: removed 2 edges (vg < 0.75 for 4 epochs), remaining=519
+[epoch 61/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9596 hinge=0.008343 hinge_frac=0.330 free=1437 clamp=474 skipped=963 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 61/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9556 hinge=0.008825 test_satisfy=0.6417 test_gap_mean=0.0574 | timing total=152.17s free=90.72s clamp=29.74s upd=1.07s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 61: removed 1 edges (vg < 0.75 for 4 epochs), remaining=518
+[epoch 62/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9589 hinge=0.008298 hinge_frac=0.328 free=1437 clamp=472 skipped=965 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 62/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008797 test_satisfy=0.6389 test_gap_mean=0.0575 | timing total=129.94s free=78.37s clamp=25.74s upd=0.95s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 62: removed 2 edges (vg < 0.75 for 4 epochs), remaining=516
+[epoch 63/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9596 hinge=0.008240 hinge_frac=0.324 free=1437 clamp=465 skipped=972 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 63/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9556 hinge=0.008779 test_satisfy=0.6389 test_gap_mean=0.0575 | timing total=133.19s free=81.39s clamp=26.42s upd=0.98s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 63: removed 1 edges (vg < 0.75 for 4 epochs), remaining=515
+[epoch 64/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9582 hinge=0.008186 hinge_frac=0.322 free=1437 clamp=463 skipped=974 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 64/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9556 hinge=0.008769 test_satisfy=0.6361 test_gap_mean=0.0576 | timing total=125.80s free=75.76s clamp=24.42s upd=0.90s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 64: removed 1 edges (vg < 0.75 for 4 epochs), remaining=514
+[epoch 65/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9576 hinge=0.008144 hinge_frac=0.317 free=1437 clamp=456 skipped=981 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 65/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008710 test_satisfy=0.6417 test_gap_mean=0.0578 | timing total=132.82s free=79.73s clamp=25.33s upd=0.97s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 65: removed 1 edges (vg < 0.75 for 4 epochs), remaining=513
+[epoch 66/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9582 hinge=0.008090 hinge_frac=0.319 free=1437 clamp=459 skipped=978 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 66/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9583 hinge=0.008636 test_satisfy=0.6444 test_gap_mean=0.0581 | timing total=135.60s free=79.95s clamp=25.51s upd=0.97s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 66: removed 2 edges (vg < 0.75 for 4 epochs), remaining=511
+[epoch 67/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9589 hinge=0.008077 hinge_frac=0.312 free=1437 clamp=448 skipped=989 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 67/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9556 hinge=0.008572 test_satisfy=0.6333 test_gap_mean=0.0584 | timing total=145.72s free=87.15s clamp=27.28s upd=1.02s
+[epoch 68/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9589 hinge=0.008017 hinge_frac=0.308 free=1437 clamp=443 skipped=994 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 68/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9583 hinge=0.008539 test_satisfy=0.6500 test_gap_mean=0.0587 | timing total=152.09s free=92.59s clamp=28.51s upd=0.97s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 68: removed 1 edges (vg < 0.75 for 4 epochs), remaining=510
+[epoch 69/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9582 hinge=0.007972 hinge_frac=0.303 free=1437 clamp=436 skipped=1001 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 69/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008507 test_satisfy=0.6444 test_gap_mean=0.0586 | timing total=136.93s free=81.30s clamp=24.84s upd=0.87s
+[epoch 70/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9589 hinge=0.007947 hinge_frac=0.308 free=1437 clamp=442 skipped=995 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 70/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008460 test_satisfy=0.6528 test_gap_mean=0.0589 | timing total=141.74s free=88.58s clamp=27.34s upd=1.00s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 70: removed 1 edges (vg < 0.75 for 4 epochs), remaining=509
+[epoch 71/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9603 hinge=0.007893 hinge_frac=0.306 free=1437 clamp=440 skipped=997 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 71/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008449 test_satisfy=0.6556 test_gap_mean=0.0589 | timing total=120.56s free=74.45s clamp=22.82s upd=0.80s
+[epoch 72/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9596 hinge=0.007877 hinge_frac=0.303 free=1437 clamp=436 skipped=1001 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 72/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008396 test_satisfy=0.6556 test_gap_mean=0.0591 | timing total=122.66s free=75.48s clamp=22.71s upd=0.84s
+[epoch 73/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9596 hinge=0.007826 hinge_frac=0.302 free=1437 clamp=434 skipped=1003 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 73/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008382 test_satisfy=0.6528 test_gap_mean=0.0592 | timing total=119.07s free=72.94s clamp=22.13s upd=0.81s
+[epoch 74/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9603 hinge=0.007800 hinge_frac=0.294 free=1437 clamp=422 skipped=1015 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 74/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9556 hinge=0.008354 test_satisfy=0.6583 test_gap_mean=0.0594 | timing total=131.71s free=80.28s clamp=23.41s upd=0.89s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 74: removed 2 edges (vg < 0.75 for 4 epochs), remaining=507
+[epoch 75/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9596 hinge=0.007756 hinge_frac=0.295 free=1437 clamp=424 skipped=1013 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 75/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9556 hinge=0.008309 test_satisfy=0.6694 test_gap_mean=0.0597 | timing total=140.54s free=85.87s clamp=25.39s upd=0.98s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 75: removed 2 edges (vg < 0.75 for 4 epochs), remaining=505
+[epoch 76/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9589 hinge=0.007705 hinge_frac=0.295 free=1437 clamp=424 skipped=1013 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 76/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9611 hinge=0.008254 test_satisfy=0.6722 test_gap_mean=0.0599 | timing total=137.97s free=83.95s clamp=24.85s upd=0.93s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 76: removed 1 edges (vg < 0.75 for 4 epochs), remaining=504
+[epoch 77/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9582 hinge=0.007692 hinge_frac=0.295 free=1437 clamp=424 skipped=1013 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 77/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008209 test_satisfy=0.6722 test_gap_mean=0.0600 | timing total=124.45s free=74.56s clamp=21.90s upd=0.85s
+[epoch 78/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9617 hinge=0.007659 hinge_frac=0.293 free=1437 clamp=421 skipped=1016 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 78/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9556 hinge=0.008167 test_satisfy=0.6722 test_gap_mean=0.0603 | timing total=107.94s free=66.37s clamp=19.34s upd=0.75s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 78: removed 1 edges (vg < 0.75 for 4 epochs), remaining=503
+[epoch 79/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9589 hinge=0.007620 hinge_frac=0.285 free=1437 clamp=410 skipped=1027 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 79/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008166 test_satisfy=0.6722 test_gap_mean=0.0602 | timing total=119.08s free=72.07s clamp=20.53s upd=0.84s
+[epoch 80/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9603 hinge=0.007583 hinge_frac=0.289 free=1437 clamp=415 skipped=1022 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 80/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9556 hinge=0.008100 test_satisfy=0.6722 test_gap_mean=0.0607 | timing total=123.90s free=77.53s clamp=22.47s upd=0.91s
+[epoch 81/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9582 hinge=0.007543 hinge_frac=0.285 free=1437 clamp=409 skipped=1028 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 81/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008151 test_satisfy=0.6667 test_gap_mean=0.0605 | timing total=124.18s free=76.45s clamp=21.85s upd=0.84s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 81: removed 4 edges (vg < 0.75 for 4 epochs), remaining=499
+[epoch 82/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9610 hinge=0.007524 hinge_frac=0.285 free=1437 clamp=409 skipped=1028 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 82/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008099 test_satisfy=0.6778 test_gap_mean=0.0607 | timing total=136.59s free=83.39s clamp=23.84s upd=0.86s
+[epoch 83/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9617 hinge=0.007494 hinge_frac=0.280 free=1437 clamp=403 skipped=1034 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 83/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9556 hinge=0.008068 test_satisfy=0.6806 test_gap_mean=0.0609 | timing total=122.30s free=76.90s clamp=21.42s upd=0.78s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 83: removed 1 edges (vg < 0.75 for 4 epochs), remaining=498
+[epoch 84/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9596 hinge=0.007463 hinge_frac=0.285 free=1437 clamp=410 skipped=1027 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 84/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.008002 test_satisfy=0.6778 test_gap_mean=0.0611 | timing total=136.34s free=83.51s clamp=23.84s upd=0.97s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 84: removed 1 edges (vg < 0.75 for 4 epochs), remaining=497
+[epoch 85/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9617 hinge=0.007432 hinge_frac=0.280 free=1437 clamp=403 skipped=1034 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 85/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9611 hinge=0.008001 test_satisfy=0.6806 test_gap_mean=0.0612 | timing total=132.69s free=84.45s clamp=23.70s upd=0.90s
+[epoch 86/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9610 hinge=0.007398 hinge_frac=0.274 free=1437 clamp=394 skipped=1043 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 86/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9583 hinge=0.007938 test_satisfy=0.6833 test_gap_mean=0.0613 | timing total=105.80s free=66.01s clamp=18.17s upd=0.65s
+[epoch 87/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9610 hinge=0.007379 hinge_frac=0.277 free=1437 clamp=398 skipped=1039 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 87/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.007949 test_satisfy=0.6722 test_gap_mean=0.0614 | timing total=135.57s free=83.53s clamp=23.11s upd=0.98s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 87: removed 1 edges (vg < 0.75 for 4 epochs), remaining=496
+[epoch 88/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9603 hinge=0.007332 hinge_frac=0.279 free=1437 clamp=401 skipped=1036 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 88/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.007923 test_satisfy=0.6722 test_gap_mean=0.0614 | timing total=109.69s free=65.87s clamp=18.33s upd=0.67s
+[epoch 89/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9624 hinge=0.007316 hinge_frac=0.277 free=1437 clamp=398 skipped=1039 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 89/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9611 hinge=0.007898 test_satisfy=0.6806 test_gap_mean=0.0617 | timing total=130.54s free=80.48s clamp=22.33s upd=0.85s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 89: removed 1 edges (vg < 0.75 for 4 epochs), remaining=495
+[epoch 90/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9624 hinge=0.007282 hinge_frac=0.277 free=1437 clamp=398 skipped=1039 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 90/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.007846 test_satisfy=0.6778 test_gap_mean=0.0619 | timing total=124.57s free=79.78s clamp=22.10s upd=0.96s
+[epoch 91/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9631 hinge=0.007253 hinge_frac=0.276 free=1437 clamp=397 skipped=1040 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 91/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9556 hinge=0.007862 test_satisfy=0.6833 test_gap_mean=0.0620 | timing total=133.06s free=82.09s clamp=22.67s upd=0.85s
+[epoch 92/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9624 hinge=0.007225 hinge_frac=0.270 free=1437 clamp=388 skipped=1049 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 92/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.007861 test_satisfy=0.6806 test_gap_mean=0.0620 | timing total=122.09s free=77.04s clamp=20.78s upd=0.73s
+[epoch 93/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9631 hinge=0.007194 hinge_frac=0.274 free=1437 clamp=394 skipped=1043 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 93/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9583 hinge=0.007801 test_satisfy=0.6806 test_gap_mean=0.0623 | timing total=119.50s free=74.63s clamp=20.48s upd=0.72s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 93: removed 1 edges (vg < 0.75 for 4 epochs), remaining=494
+[epoch 94/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9624 hinge=0.007165 hinge_frac=0.269 free=1437 clamp=387 skipped=1050 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 94/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9528 hinge=0.007776 test_satisfy=0.6833 test_gap_mean=0.0623 | timing total=123.02s free=74.65s clamp=20.07s upd=0.81s
+[epoch 95/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9624 hinge=0.007140 hinge_frac=0.270 free=1437 clamp=388 skipped=1049 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 95/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9583 hinge=0.007703 test_satisfy=0.6944 test_gap_mean=0.0626 | timing total=131.24s free=82.12s clamp=22.21s upd=0.87s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 95: removed 1 edges (vg < 0.75 for 4 epochs), remaining=493
+[epoch 96/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9631 hinge=0.007099 hinge_frac=0.276 free=1437 clamp=396 skipped=1041 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 96/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9611 hinge=0.007738 test_satisfy=0.6889 test_gap_mean=0.0628 | timing total=126.47s free=77.55s clamp=21.39s upd=1.01s
+[epoch 97/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9638 hinge=0.007081 hinge_frac=0.268 free=1437 clamp=385 skipped=1052 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 97/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9556 hinge=0.007707 test_satisfy=0.6806 test_gap_mean=0.0628 | timing total=127.12s free=77.97s clamp=20.91s upd=0.93s
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[prune] epoch 97: removed 1 edges (vg < 0.75 for 4 epochs), remaining=492
+[epoch 98/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9645 hinge=0.007060 hinge_frac=0.267 free=1437 clamp=384 skipped=1053 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 98/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9611 hinge=0.007636 test_satisfy=0.6889 test_gap_mean=0.0631 | timing total=124.50s free=76.50s clamp=20.48s upd=0.87s
+[epoch 99/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9638 hinge=0.007022 hinge_frac=0.262 free=1437 clamp=376 skipped=1061 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 99/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9611 hinge=0.007629 test_satisfy=0.6944 test_gap_mean=0.0633 | timing total=124.43s free=77.06s clamp=20.19s upd=1.00s
+[epoch 100/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | TRAIN acc=0.9631 hinge=0.007014 hinge_frac=0.264 free=1437 clamp=380 skipped=1057 reloadF=0 reloadC=0 nonfiniteF=0 nonfiniteC=0
+[epoch 100/100] seed=1 gamma=0.3 delta=0.05 margin=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=floating body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.75 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL acc=0.9583 hinge=0.007589 test_satisfy=0.6944 test_gap_mean=0.0633 | timing total=125.14s free=77.18s clamp=20.28s upd=0.89s
+=== RUN END (scikit_digits_dense_io_hinge) ===

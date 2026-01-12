@@ -68,7 +68,7 @@ from topology.topology_io import Topology, load_topology_npz, save_topology_npz,
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEVICE_LIB_PATH = str(REPO_ROOT / "device_model" / "nmos_lvl1_ald1106.lib")
 DEVICE_SUBCKT = "NMOSWRAP"
-TOPOLOGY_PATH = REPO_ROOT / "scikit_digit" / "topology" / "digits_8x8_dense_io_x3.npz"
+TOPOLOGY_PATH = REPO_ROOT / "scikit_digit" / "topology" / "digits_8x8_dense_io_x1.npz"
 #TOPOLOGY_PATH = REPO_ROOT / "scikit_digit" / "topology" / "digits_8x8_dense_io_x3_pruned_vglt0p75_epoch10.npz" # prune no. 1: pruned at epoch 10 with vg lower limit 0.75V
 
 VG_CLIP_LO, VG_CLIP_HI = 0.4, 8.0
@@ -146,7 +146,7 @@ def parse_args():
 
     # Learning hyperparams
     p.add_argument("--gamma", type=float, default=0.3)
-    p.add_argument("--margin", type=float, default=0.05, help="hinge margin m (volts)")
+    p.add_argument("--margin", type=float, default=0.02, help="hinge margin m (volts)")
     p.add_argument("--delta", type=float, default=0.05, help="clamp nudge delta (volts)")
 
     # Input mapping
@@ -586,7 +586,7 @@ def main():
     if vg_cutoff_epochs < 1:
         raise ValueError("--vg-cutoff-epochs must be >= 1")
     model_vto = load_model_vto(Path(DEVICE_LIB_PATH))
-    vg_cutoff = 0.8 * model_vto
+    vg_cutoff = model_vto
 
     # Dataset: scikit digits 8x8 only
     digits = load_digits()

@@ -1,0 +1,67 @@
+{
+  "epoch": 86,
+  "config": {
+    "seed": 1,
+    "gamma": 0.3,
+    "margin": 0.1,
+    "delta": 0.05,
+    "input_vmin": 0.0,
+    "input_vmax": 1.0,
+    "rails": [
+      0.0,
+      0.45
+    ],
+    "solver": "klu",
+    "body_tie": "ground",
+    "body_res": 10.0,
+    "rs_clamp": 10.0,
+    "model_vto": 0.75,
+    "vg_cutoff": 0.75,
+    "vg_cutoff_epochs": 4,
+    "vg_init": {
+      "mode": "random",
+      "lo": 1.5,
+      "hi": 2.5,
+      "fixed": 2.0
+    },
+    "epochs": 100,
+    "device_include_path": "/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib",
+    "device_subckt": "NMOSWRAP"
+  },
+  "train": {
+    "acc": 0.9582463465553236,
+    "hinge": 0.014737839805149618,
+    "n_free": 1437,
+    "n_clamp": 384,
+    "hinge_active": 384,
+    "hinge_active_frac": 0.267223382045929,
+    "skipped": 1053,
+    "reload_free": 0,
+    "reload_clamp": 0,
+    "nonfinite_free": 0,
+    "nonfinite_clamp": 0
+  },
+  "val": {
+    "acc": 0.9444444444444444,
+    "hinge": 0.016477115833333333,
+    "test_gap_mean": 0.14320275277777778,
+    "test_gap_median": 0.14771505,
+    "test_gap_std": 0.08283561665291515,
+    "test_satisfy_frac": 0.7111111111111111,
+    "test_hinge_mean": 0.016477115833333333,
+    "val_reloads": 0.0,
+    "val_nonfinite": 0.0
+  },
+  "timing_s": {
+    "epoch_total": 15.288915872573853,
+    "train_free": 7.5302629470825195,
+    "train_clamp": 2.002253532409668,
+    "train_update": 0.36156678199768066
+  },
+  "vg_stats": {
+    "vg_unique_min": 0.7314090354707992,
+    "vg_unique_max": 4.4816033089048295,
+    "vg_unique_sat_lo": 0.0,
+    "vg_unique_sat_hi": 0.0
+  }
+}

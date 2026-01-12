@@ -1,0 +1,61 @@
+{
+  "epoch": 7,
+  "config": {
+    "seed": 0,
+    "gamma": 0.3,
+    "delta": 0.05,
+    "input_vmin": 0.0,
+    "input_vmax": 1.0,
+    "rails": [
+      0.0,
+      0.45
+    ],
+    "solver": "klu",
+    "body_tie": "ground",
+    "body_res": 10.0,
+    "rs_clamp": 10.0,
+    "vg_init": {
+      "mode": "fixed",
+      "lo": 1.0,
+      "hi": 3.0,
+      "fixed": 2.0
+    },
+    "epochs": 20
+  },
+  "proto": {
+    "proto_reloads": 0.0,
+    "proto_nonfinite": 0.0,
+    "proto_valid_classes": 10.0
+  },
+  "train": {
+    "acc": 0.12734864300626306,
+    "mse": 0.0006313804281760235,
+    "mse_count": 1437,
+    "skipped_no_target": 0,
+    "n_free": 1437,
+    "n_clamp": 1437,
+    "reload_free": 0,
+    "reload_clamp": 0,
+    "nonfinite_free": 0,
+    "nonfinite_clamp": 0
+  },
+  "val": {
+    "acc": 0.14722222222222223,
+    "mse": 0.0006657190243257642,
+    "val_reloads": 0.0,
+    "val_nonfinite": 0.0,
+    "val_mse_count": 360.0
+  },
+  "timing_s": {
+    "epoch_total": 85.20716142654419,
+    "train_free": 31.219841957092285,
+    "train_clamp": 31.124772548675537,
+    "train_update": 4.022842645645142
+  },
+  "vg_stats": {
+    "vg_unique_min": 1.5388047551896604,
+    "vg_unique_max": 2.8655358214396816,
+    "vg_unique_sat_lo": 0.0,
+    "vg_unique_sat_hi": 0.0
+  }
+}

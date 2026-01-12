@@ -1,0 +1,79 @@
+{
+  "script": "/home/ma-lab/Desktop/pyclln-final/scikit_digit/auto_prune_trainer.py",
+  "argv": [
+    "/home/ma-lab/Desktop/pyclln-final/scikit_digit/auto_prune_trainer.py",
+    "2",
+    "--epochs",
+    "100",
+    "--solver",
+    "klu",
+    "--gamma",
+    "3",
+    "--delta",
+    "0.02",
+    "--margin",
+    "0.02",
+    "--body-tie",
+    "ground",
+    "--vg-init",
+    "random",
+    "--vg-init-lo",
+    "1",
+    "--vg-init-hi",
+    "6"
+  ],
+  "seed": 2,
+  "timestamp": "2026-01-11T04:15:32.549886",
+  "dataset": "sklearn_digits",
+  "input_shape": [
+    8,
+    8
+  ],
+  "train_count": 1437,
+  "test_count": 360,
+  "gamma": 3.0,
+  "margin": 0.02,
+  "delta": 0.02,
+  "epochs": 100,
+  "input_vmin": 0.0,
+  "input_vmax": 1.0,
+  "rails": {
+    "vminus": 0.0,
+    "vplus": 0.45
+  },
+  "solver": "klu",
+  "body_tie": "ground",
+  "body_res": 10.0,
+  "rs_clamp": 10.0,
+  "model_vto": 0.75,
+  "vg_cutoff": 0.75,
+  "vg_cutoff_epochs": 4,
+  "vg_init": {
+    "mode": "random",
+    "lo": 1.0,
+    "hi": 6.0,
+    "fixed": 2.0
+  },
+  "device": {
+    "include_path": "/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib",
+    "subckt": "NMOSWRAP"
+  },
+  "topology": {
+    "path": "/home/ma-lab/Desktop/pyclln-final/scikit_digit/topology/digits_8x8_dense_io_x1.npz",
+    "Nin": 64,
+    "out": 10,
+    "edges": 640,
+    "meta": {
+      "type": "fully_connected_input_output",
+      "Nin": 64,
+      "K": 10,
+      "copies_per_pair": 1,
+      "edges": 640,
+      "ordering": "uid=((i*K)+k)*copies + c"
+    }
+  },
+  "diagnostics": {
+    "vout_saved": "test"
+  },
+  "diode_source_to_vplus": false
+}

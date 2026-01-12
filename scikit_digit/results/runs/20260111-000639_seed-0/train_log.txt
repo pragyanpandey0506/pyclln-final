@@ -1,0 +1,23 @@
+=== RUN START (scikit_digits_dense_io_hinge) ===
+seed=0 gamma=0.3 delta=0.05 margin=0.02 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=ground body_res=10.0 rs_clamp=10.0 vg_init=random vg_cutoff=0.6 vg_cutoff_epochs=4 epochs=100 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz
+train=1437 test=360 edges=640
+Traceback (most recent call last):
+  File "/home/ma-lab/Desktop/pyclln-final/./scikit_digit/auto_prune_trainer.py", line 1156, in <module>
+    main()
+    ~~~~^^
+  File "/home/ma-lab/Desktop/pyclln-final/./scikit_digit/auto_prune_trainer.py", line 724, in main
+    ng = NgSpiceShared(send_data=False)
+  File "/home/ma-lab/.local/lib/python3.13/site-packages/PySpice/Spice/NgSpice/Shared.py", line 479, in __init__
+    self._load_library(verbose)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/ma-lab/.local/lib/python3.13/site-packages/PySpice/Spice/NgSpice/Shared.py", line 539, in _load_library
+    self._ngspice_shared = ffi.dlopen(self.library_path)
+                           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/home/ma-lab/miniconda3/lib/python3.13/site-packages/cffi/api.py", line 150, in dlopen
+    lib, function_cache = _make_ffi_library(self, name, flags)
+                          ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/home/ma-lab/miniconda3/lib/python3.13/site-packages/cffi/api.py", line 834, in _make_ffi_library
+    backendlib = _load_backend_lib(backend, libname, flags)
+  File "/home/ma-lab/miniconda3/lib/python3.13/site-packages/cffi/api.py", line 829, in _load_backend_lib
+    raise OSError(msg)
+OSError: cannot load library 'libngspice.so': libngspice.so: cannot open shared object file: No such file or directory.  Additionally, ctypes.util.find_library() did not manage to locate a library called 'libngspice.so'

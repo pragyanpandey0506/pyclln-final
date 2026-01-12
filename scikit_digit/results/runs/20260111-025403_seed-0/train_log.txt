@@ -1,0 +1,22 @@
+=== RUN START (scikit_digits_dense_io_mse_avgappr) ===
+seed=0 gamma=0.3 delta=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=ground body_res=10.0 rs_clamp=10.0 vg_init=random epochs=20 onehot_hi=0.5 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz
+train=1437 test=360 edges=640
+Unsupported Ngspice version 41
+Warning: Unusual leading characters like ')' or others out of '= [] ? () & % $"!:,\f'
+in netlist or included files, will be replaced with '*'.
+Check line no 4:  )
+Warning: Model issue on line 3 :
+.model ncg nmos (level=1 vto=0.75 gamma=1.09 phi=0.9499477708465783 tpg= ...
+unrecognized parameter (theta) - ignored
+Warning: option itl5 is currently unsupported.
+[epoch 0] seed=0 gamma=0.3 delta=0.05 in=[0.0,1.0] Nin=64 K=10 rails=[0.0,0.45] solver=klu body_tie=ground body_res=10.0 rs_clamp=10.0 vg_init=random epochs=20 onehot_hi=0.5 device_include=/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib subckt=NMOSWRAP topology=digits_8x8_dense_io_x1.npz | VAL(onehot) acc=0.1889 mse=0.0558975
+Traceback (most recent call last):
+  File "/home/ma-lab/Desktop/pyclln-final/scikit_digit/dense_trainer_avgappr.py", line 1126, in <module>
+    main()
+  File "/home/ma-lab/Desktop/pyclln-final/scikit_digit/dense_trainer_avgappr.py", line 1072, in main
+    "val": {"acc": float(v_acc), "mse": float(v_mse), **{k: float(v) for k, v in diag.items()}},
+                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ma-lab/Desktop/pyclln-final/scikit_digit/dense_trainer_avgappr.py", line 1072, in <dictcomp>
+    "val": {"acc": float(v_acc), "mse": float(v_mse), **{k: float(v) for k, v in diag.items()}},
+                                                            ^^^^^^^^
+ValueError: could not convert string to float: 'onehot'
