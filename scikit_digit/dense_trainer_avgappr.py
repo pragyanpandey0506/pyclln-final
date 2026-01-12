@@ -1,39 +1,46 @@
 #!/usr/bin/env python3
 """
 Scikit Digits — dense input→output NMOS network (no hidden nodes)
-Hinge loss training (SGD, no batching) with two-phase (free / clamp) ngspice runs.
+MSE training with two-phase (free / clamp) ngspice runs.
 
-Key behavior:
-  - Dataset: sklearn digits 8x8 (default; no crop options).
-  - Topology: loaded from NPZ (digits_8x8_dense_io_x3), with parallel edges per input/output.
-  - Init VG: random in [VG_INIT_LO, VG_INIT_HI] or fixed VG_INIT_SINGLE via --vg-init.
-  - Per-sample training:
-      1) Free phase:   RS all = 1e12 (outputs effectively unclamped), run .op
-      2) Compute hinge. If inactive, skip clamp + update.
-      3) Clamp phase: clamp only y and rival outputs via RS=RS_CLAMP and nudged VOUT sources.
-      4) Update: dVG_e = -gamma * ( (dV_e^C)^2 - (dV_e^F)^2 ), clip to [0.4, 10.0]
-  - Epochs:
-      * Run a fixed number of epochs (default 20).
-  - Logging:
-      * Each epoch prints two clean lines: TRAIN + VAL (+ timing) including full config.
+Behavior:
+  - Dataset: sklearn digits 8x8 (Nin=64).
+  - Topology: loaded from NPZ (digits_8x8_dense_io_x1 by default).
+  - Init VG: random in [--vg-init-lo, --vg-init-hi] or fixed --vg-init-fixed via --vg-init.
+  - Training is two-phase per sample:
+      1) Free phase:   RS all = RS_FREE, run .op, read Vout + all nodes needed for updates
+      2) Clamp phase:  set VOUT sources + RS to implement a "target" output, run .op, read nodes
+      3) Update:       dVG_e = -gamma * ( (dV_e^C)^2 - (dV_e^F)^2 ), clip to [VG_CLIP_LO, VG_CLIP_HI]
+
+Epoch semantics (as requested):
+  - Epoch 0: NO training. Baseline validation only, using one-hot metric (argmax + MSE to one-hot).
+  - Epoch 1: First training epoch uses ONE-HOT targets:
+        target[y] = 0.5 V, target[others] = 0 V (hard clamp).
+        Prediction: argmax(Vout_free)
+  - Epoch >= 2: "Averaging" mode:
+        At start of each epoch:
+          - Compute proto_in[k] = mean(train inputs with label k)
+          - Measure proto_out[k] = Vout_free(proto_in[k])
+        During training and validation:
+          - Prediction: nearest proto_out (L2)
+          - Target: proto_out[y]
+          - Clamp: soft nudge toward target:
+                VOUT = Vout_free + delta * (target - Vout_free)
+            with RS forced to RS_CLAMP on ALL outputs for the clamp phase.
 
 Device model:
-  - Uses external include file defining:
+  - External include file defines:
       .model ncg nmos (...)
       .subckt NMOSWRAP D G S B
          M0 D G S B ncg ...
       .ends
-  - Body tie is selectable via --body-tie (source, ground, floating); default is ground.
-    Body resistor is fixed to RS_CLAMP.
+  - Body tie selectable via --body-tie (source, ground, floating); default ground.
+  - Body resistor fixed to RS_CLAMP.
   - Source->V+ diode is OFF (not instantiated).
 
-Paths:
-  - Device include file (repo-relative):
-      device_model/nmos_lvl1_ald1106.lib
-  - Topology file (repo-relative):
-      scikit_digit/topology/digits_8x8_dense_io_x3.npz
-  - Script location (repo-relative):
-      scikit_digit/dense_trainer.py
+Paths (repo-relative):
+  - device_model/nmos_lvl1_ald1106.lib
+  - scikit_digit/topology/digits_8x8_dense_io_x1.npz
 """
 
 from __future__ import annotations
@@ -42,6 +49,7 @@ import argparse
 import json
 import os
 import random
+import re
 import sys
 import time
 from datetime import datetime
@@ -58,23 +66,26 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from topology.topology_io import Topology, load_topology_npz
+from topology.topology_io import Topology, load_topology_npz, validate_topology
 
 
 # -------------------------
-# Fixed device include (external)
+# Fixed paths / constants
 # -------------------------
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEVICE_LIB_PATH = str(REPO_ROOT / "device_model" / "nmos_lvl1_ald1106.lib")
 DEVICE_SUBCKT = "NMOSWRAP"
+
 TOPOLOGY_PATH = REPO_ROOT / "scikit_digit" / "topology" / "digits_8x8_dense_io_x1.npz"
 #TOPOLOGY_PATH = REPO_ROOT / "scikit_digit" / "topology" / "digits_8x8_dense_io_x1_pruned_vglt0p75_epoch20_run20260110-235531.npz"
 
 VG_CLIP_LO, VG_CLIP_HI = 0.4, 8.0
 VG_INIT_SINGLE = 2.0
-# Output clamp/free resistors (fixed)
+
 RS_FREE = 1e9
 RS_CLAMP = 10.0
+
+ONEHOT_HI_V = 0.5  # epoch-1 one-hot clamp target (requested)
 
 
 # -------------------------
@@ -130,19 +141,16 @@ def setup_logging(run_dir: Path):
 # -------------------------
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Scikit Digits — dense input→output NMOS network, hinge loss, ngspice"
+        description="Scikit Digits — dense input→output NMOS network, MSE, ngspice"
     )
     p.add_argument("seed", type=int, nargs="?", default=0)
 
-    # Training epochs
     p.add_argument("--epochs", type=int, default=20, help="Total epochs (default 20).")
 
-    # Learning hyperparams
     p.add_argument("--gamma", type=float, default=0.3)
-    p.add_argument("--margin", type=float, default=0.02, help="hinge margin m (volts)")
-    p.add_argument("--delta", type=float, default=0.05, help="clamp nudge delta (volts)")
+    p.add_argument("--delta", type=float, default=0.3, help="clamp nudge delta (unitless scale, typically 0..1)")
 
-    # Input mapping
+    # Input mapping (do not sweep, but keep options)
     p.add_argument("--input-vmin", type=float, default=0.0)
     p.add_argument("--input-vmax", type=float, default=1.0)
 
@@ -158,6 +166,7 @@ def parse_args():
         default="ground",
         help="Body tie mode: source, ground, or floating (default ground).",
     )
+
     # Init VG
     p.add_argument(
         "--vg-init",
@@ -166,24 +175,9 @@ def parse_args():
         default="random",
         help="VG init mode: random or fixed (default random).",
     )
-    p.add_argument(
-        "--vg-init-lo",
-        type=float,
-        default=1.0,
-        help="Random VG init low (default from trainer).",
-    )
-    p.add_argument(
-        "--vg-init-hi",
-        type=float,
-        default=3.0,
-        help="Random VG init high (default from trainer).",
-    )
-    p.add_argument(
-        "--vg-init-fixed",
-        type=float,
-        default=VG_INIT_SINGLE,
-        help="Fixed VG init value (default from trainer).",
-    )
+    p.add_argument("--vg-init-lo", type=float, default=1.0)
+    p.add_argument("--vg-init-hi", type=float, default=3.0)
+    p.add_argument("--vg-init-fixed", type=float, default=VG_INIT_SINGLE)
 
     # Solver
     p.add_argument("--solver", type=str, choices=["klu", "sparse"], default="klu")
@@ -264,28 +258,52 @@ def mk_free_all(ng: NgSpiceShared, K: int):
     exec_chunked(ng, [f"alter RS{i} {RS_FREE:.6g}" for i in range(1, K + 1)])
 
 
-def alter_outputs_hinge(
-    ng: NgSpiceShared,
-    K: int,
-    y: int,
-    r: int,
-    Vy: float,
-    Vr: float,
-    delta: float,
-):
-    # Set all free
-    cmds: List[str] = [f"alter RS{i} {RS_FREE:.6g}" for i in range(1, K + 1)]
-    # Clamp y and rival through RS=RS_CLAMP
-    cmds.append(f"alter RS{y+1} {RS_CLAMP:.6g}")
-    cmds.append(f"alter RS{r+1} {RS_CLAMP:.6g}")
+def restore_gate_voltages(ng: NgSpiceShared, vg_unique: np.ndarray):
+    exec_chunked(ng, [f"alter VG{i} dc = {float(vg_unique[i]):.16f}" for i in range(vg_unique.size)])
 
-    Vy_c = float(Vy + 0.5 * delta)
-    Vr_c = float(Vr - 0.5 * delta)
-    cmds.append(f"alter VOUT{y} dc = {Vy_c:.16f}")
-    cmds.append(f"alter VOUT{r} dc = {Vr_c:.16f}")
+
+def onehot_target(y: int, K: int, hi: float = ONEHOT_HI_V) -> np.ndarray:
+    t = np.zeros((K,), dtype=float)
+    t[y] = float(hi)
+    return t
+
+
+def alter_outputs_hard_target(ng: NgSpiceShared, target: np.ndarray, K: int):
+    """
+    Hard clamp ALL outputs through RS=RS_CLAMP and set VOUTj exactly to target[j].
+    """
+    cmds: List[str] = []
+    for i in range(1, K + 1):
+        cmds.append(f"alter RS{i} {RS_CLAMP:.6g}")
+    for j in range(K):
+        cmds.append(f"alter VOUT{j} dc = {float(target[j]):.16f}")
     exec_chunked(ng, cmds)
 
 
+def alter_outputs_mse_to_target(
+    ng: NgSpiceShared,
+    Vout_free: np.ndarray,
+    target: np.ndarray,
+    delta: float,
+    K: int,
+):
+    """
+    Soft clamp ALL outputs through RS=RS_CLAMP:
+      VOUT = Vfree + delta*(target - Vfree)
+    """
+    delta = float(delta)
+    cmds: List[str] = []
+    for i in range(1, K + 1):
+        cmds.append(f"alter RS{i} {RS_CLAMP:.6g}")
+    for j in range(K):
+        Vc = float(Vout_free[j] + delta * (target[j] - Vout_free[j]))
+        cmds.append(f"alter VOUT{j} dc = {Vc:.16f}")
+    exec_chunked(ng, cmds)
+
+
+# -------------------------
+# Netlist
+# -------------------------
 def mk_netlist(
     topo: Topology,
     vg_unique: np.ndarray,
@@ -299,7 +317,7 @@ def mk_netlist(
         raise ValueError("vg_unique size mismatch")
 
     lines: List[str] = []
-    lines.append(".title scikit_digits_dense_io_hinge")
+    lines.append(".title scikit_digits_dense_io_mse")
     lines.append(f'.include "{DEVICE_LIB_PATH}"')
 
     if solver.lower() == "klu":
@@ -346,11 +364,8 @@ def mk_netlist(
         else:
             raise ValueError(f"Unsupported body_tie: {body_tie}")
 
-        # Instantiate wrapper subckt from included file
         # NMOSWRAP pins: D G S B
         lines.append(f"X{eidx} {D} {gate_node} {S} {body_node} {DEVICE_SUBCKT}")
-
-        # Source->V+ diode is intentionally NOT instantiated.
 
     lines.extend(
         [
@@ -367,44 +382,91 @@ def mk_netlist(
 
 
 # -------------------------
-# Metrics
+# MSE / prototypes
 # -------------------------
-def hinge_loss_from_outputs(V: np.ndarray, y: int, margin: float) -> float:
-    Vy = float(V[y])
-    V2 = V.copy()
-    V2[y] = -np.inf
-    Vr = float(np.max(V2))
-    return float(max(0.0, margin - (Vy - Vr)))
+def mse_to_target(V: np.ndarray, T: np.ndarray) -> float:
+    d = (V - T).astype(float)
+    return float(np.mean(d * d))
 
 
-def margin_gap(V: np.ndarray, y: int) -> float:
-    Vy = float(V[y])
-    V2 = V.copy()
-    V2[y] = -np.inf
-    Vr = float(np.max(V2))
-    return float(Vy - Vr)
+def predict_argmax(Vout: np.ndarray) -> int:
+    return int(np.argmax(Vout))
 
 
-def pred_and_rival(V: np.ndarray, y: int) -> Tuple[int, int]:
-    pred = int(np.argmax(V))
-    V2 = V.copy()
-    V2[y] = -np.inf
-    rival = int(np.argmax(V2))
-    return pred, rival
+def predict_nearest_proto(Vout: np.ndarray, proto_out: np.ndarray) -> int:
+    # proto_out: (K,K) in this setting, but keep generic (K,dim)
+    # ignore NaN prototypes
+    dif = proto_out - Vout[None, :]
+    # distances where any nan in row -> inf
+    bad = ~np.all(np.isfinite(proto_out), axis=1)
+    dist = np.sum(dif * dif, axis=1)
+    dist[bad] = np.inf
+    if not np.any(np.isfinite(dist)):
+        return int(np.argmax(Vout))
+    return int(np.argmin(dist))
 
 
-def restore_gate_voltages(ng: NgSpiceShared, vg_unique: np.ndarray):
-    exec_chunked(ng, [f"alter VG{i} dc = {float(vg_unique[i]):.16f}" for i in range(vg_unique.size)])
+def compute_input_prototypes(train_x: List[np.ndarray], train_y: List[int], K: int) -> np.ndarray:
+    Nin = int(train_x[0].size)
+    proto_in = np.full((K, Nin), np.nan, dtype=float)
+    counts = np.zeros((K,), dtype=int)
+    acc = np.zeros((K, Nin), dtype=float)
+    for x, y in zip(train_x, train_y):
+        yy = int(y)
+        acc[yy] += np.asarray(x, dtype=float)
+        counts[yy] += 1
+    for k in range(K):
+        if counts[k] > 0:
+            proto_in[k] = acc[k] / float(counts[k])
+    return proto_in
 
 
-def compute_vg_saturation_stats(vg_unique: np.ndarray) -> Dict[str, float]:
-    lo, hi = VG_CLIP_LO, VG_CLIP_HI
-    return {
-        "vg_unique_min": float(np.min(vg_unique)),
-        "vg_unique_max": float(np.max(vg_unique)),
-        "vg_unique_sat_lo": float(np.sum(vg_unique <= (lo + 1e-12))),
-        "vg_unique_sat_hi": float(np.sum(vg_unique >= (hi - 1e-12))),
+def measure_output_prototypes(
+    ng: NgSpiceShared,
+    topo: Topology,
+    netlist: str,
+    vg_unique: np.ndarray,
+    proto_in: np.ndarray,
+) -> Tuple[np.ndarray, Dict[str, float]]:
+    K = int(topo.K)
+    proto_out = np.full((K, K), np.nan, dtype=float)
+    reloads = 0
+    nonfinite = 0
+    ok_count = 0
+
+    mk_free_all(ng, K)
+
+    for k in range(K):
+        xk = proto_in[k]
+        if not np.all(np.isfinite(xk)):
+            continue
+        alter_inputs_named(ng, xk)
+        ok, _, data, _ = run_and_read(ng, {"out": topo.out_nodes})
+        if (not ok) or (data is None):
+            reloads += 1
+            try:
+                ng.remove_circuit()
+            except Exception:
+                pass
+            ng.load_circuit(netlist)
+            restore_gate_voltages(ng, vg_unique)
+            mk_free_all(ng, K)
+            continue
+
+        Vout = np.asarray(data["out"], dtype=float)
+        if not np.all(np.isfinite(Vout)):
+            nonfinite += 1
+            continue
+
+        proto_out[k, :] = Vout
+        ok_count += 1
+
+    diag = {
+        "proto_ok": float(ok_count),
+        "proto_reloads": float(reloads),
+        "proto_nonfinite": float(nonfinite),
     }
+    return proto_out, diag
 
 
 def save_plots(run_dir: Path):
@@ -413,16 +475,14 @@ def save_plots(run_dir: Path):
         return np.load(p) if p.exists() else None
 
     tr_acc = _load("0_train_acc.npy")
-    tr_h = _load("0_train_hinge.npy")
+    tr_mse = _load("0_train_mse.npy")
     va_acc = _load("0_val_acc.npy")
-    va_h = _load("0_val_hinge.npy")
+    va_mse = _load("0_val_mse.npy")
 
     ep_total = _load("0_epoch_total_s.npy")
     ep_free = _load("0_epoch_free_s.npy")
     ep_clamp = _load("0_epoch_clamp_s.npy")
     ep_upd = _load("0_epoch_update_s.npy")
-
-    hinge_frac = _load("0_hinge_active_frac.npy")
 
     if tr_acc is not None and va_acc is not None:
         plt.figure()
@@ -437,17 +497,17 @@ def save_plots(run_dir: Path):
         plt.savefig(run_dir / "learning_curves_acc.png", dpi=160)
         plt.close()
 
-    if tr_h is not None and va_h is not None:
+    if tr_mse is not None and va_mse is not None:
         plt.figure()
-        plt.plot(np.arange(len(va_h)), va_h, label="val hinge")
-        plt.plot(np.arange(1, len(tr_h) + 1), tr_h, label="train hinge")
+        plt.plot(np.arange(len(va_mse)), va_mse, label="val mse")
+        plt.plot(np.arange(1, len(tr_mse) + 1), tr_mse, label="train mse")
         plt.xlabel("epoch")
-        plt.ylabel("hinge loss")
-        plt.title("Hinge loss vs epoch")
+        plt.ylabel("mse")
+        plt.title("MSE vs epoch")
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        plt.savefig(run_dir / "learning_curves_hinge.png", dpi=160)
+        plt.savefig(run_dir / "learning_curves_mse.png", dpi=160)
         plt.close()
 
     if ep_total is not None and ep_free is not None and ep_clamp is not None and ep_upd is not None:
@@ -466,18 +526,97 @@ def save_plots(run_dir: Path):
         plt.savefig(run_dir / "timing.png", dpi=160)
         plt.close()
 
-    if hinge_frac is not None:
-        e = np.arange(1, len(hinge_frac) + 1)
-        plt.figure()
-        plt.plot(e, hinge_frac, label="hinge active fraction")
-        plt.xlabel("epoch")
-        plt.ylabel("fraction")
-        plt.title("Hinge-active fraction vs epoch")
-        plt.grid(True)
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(run_dir / "hinge_active.png", dpi=160)
-        plt.close()
+
+# -------------------------
+# Validation
+# -------------------------
+def eval_free_metrics(
+    ng: NgSpiceShared,
+    topo: Topology,
+    netlist: str,
+    vg_unique: np.ndarray,
+    test_x: List[np.ndarray],
+    test_y: List[int],
+    K: int,
+    run_dir: Path,
+    epoch: int,
+    mode: str,
+    proto_out: Optional[np.ndarray] = None,
+) -> Tuple[float, float, Dict[str, float]]:
+    """
+    mode="onehot": prediction=argmax, target=onehot(0.5V), mse computed to onehot
+    mode="proto":  prediction=nearest proto_out, target=proto_out[y], mse computed to proto target
+    """
+    mk_free_all(ng, K)
+
+    correct = 0
+    total = 0
+    mse_sum = 0.0
+    mse_count = 0
+    reloads = 0
+    nonfinite = 0
+
+    test_n = len(test_x)
+    vout_test = np.full((test_n, K), np.nan, dtype=float) if test_n > 0 else np.zeros((0, K), dtype=float)
+
+    for i, (xt, yt) in enumerate(zip(test_x, test_y)):
+        alter_inputs_named(ng, xt)
+        ok, _, data, _ = run_and_read(ng, {"out": topo.out_nodes})
+        if (not ok) or (data is None):
+            reloads += 1
+            try:
+                ng.remove_circuit()
+            except Exception:
+                pass
+            ng.load_circuit(netlist)
+            restore_gate_voltages(ng, vg_unique)
+            mk_free_all(ng, K)
+            continue
+
+        Vout = np.asarray(data["out"], dtype=float)
+        if not np.all(np.isfinite(Vout)):
+            nonfinite += 1
+            continue
+
+        ytrue = int(yt)
+        if mode == "onehot":
+            yhat = predict_argmax(Vout)
+            target = onehot_target(ytrue, K)
+        elif mode == "proto":
+            if proto_out is None:
+                raise ValueError("proto_out must be provided for mode='proto'")
+            yhat = predict_nearest_proto(Vout, proto_out)
+            target = np.asarray(proto_out[ytrue, :], dtype=float)
+            if not np.all(np.isfinite(target)):
+                # cannot score MSE; still count acc
+                target = None
+        else:
+            raise ValueError(f"unknown mode: {mode}")
+
+        correct += int(yhat == ytrue)
+        total += 1
+
+        if target is not None:
+            l = mse_to_target(Vout, target)
+            if np.isfinite(l):
+                mse_sum += float(l)
+                mse_count += 1
+
+        vout_test[i, :] = Vout
+
+    if test_n > 0:
+        np.save(run_dir / f"0_vout_test_epoch{epoch}.npy", vout_test)
+
+    acc = (correct / total) if total else float("nan")
+    mse = (mse_sum / mse_count) if mse_count else float("nan")
+
+    diag = {
+        "val_mode": mode,
+        "val_reloads": float(reloads),
+        "val_nonfinite": float(nonfinite),
+        "val_mse_count": float(mse_count),
+    }
+    return float(acc), float(mse), diag
 
 
 # -------------------------
@@ -494,8 +633,8 @@ def main():
         raise ValueError("--epochs must be >= 1")
 
     gamma = float(args.gamma)
-    margin = float(args.margin)
     delta = float(args.delta)
+
     vmin = float(args.input_vmin)
     vmax = float(args.input_vmax)
     if vmax <= vmin:
@@ -503,9 +642,11 @@ def main():
 
     vminus_val = float(args.vminus)
     vplus_val = float(args.vplus)
+
     solver = str(args.solver).lower()
-    body_res = float(RS_CLAMP)
     body_tie = str(args.body_tie)
+    body_res = float(RS_CLAMP)
+
     vg_init_mode = str(args.vg_init)
     vg_init_lo = float(args.vg_init_lo)
     vg_init_hi = float(args.vg_init_hi)
@@ -513,7 +654,7 @@ def main():
     if vg_init_mode == "random" and vg_init_hi <= vg_init_lo:
         raise ValueError("--vg-init-hi must be > --vg-init-lo for random init")
 
-    # Dataset: scikit digits 8x8 only
+    # Dataset
     digits = load_digits()
     imgs = (digits.images / 16.0).astype(np.float64)  # (N,8,8) in [0,1]
     y = digits.target.astype(int)
@@ -537,18 +678,17 @@ def main():
     test_x = [row.astype(float) for row in X_test]
     test_y = [int(v) for v in y_test.tolist()]
 
-    Nin = int(train_x[0].size)  # should be 64
+    Nin = int(train_x[0].size)
     if not TOPOLOGY_PATH.exists():
         raise FileNotFoundError(f"Topology file not found: {TOPOLOGY_PATH}")
     topo = load_topology_npz(TOPOLOGY_PATH)
+    validate_topology(topo)
+
     if topo.Nin != Nin:
         raise ValueError(f"Topology Nin={topo.Nin} does not match data Nin={Nin}")
-    K = topo.K
+    K = int(topo.K)
 
-    # Diagnostics use the full test set
-    test_n = len(test_x)
-
-    # Init weights (unique VG per edge)
+    # Init VG
     if vg_init_mode == "fixed":
         vg_unique = np.full((topo.num_edges,), vg_init_single, dtype=float)
     else:
@@ -570,16 +710,17 @@ def main():
     log_f = setup_logging(run_dir)
 
     cfg_str = (
-        f"seed={seed} gamma={gamma} delta={delta} margin={margin} "
+        f"seed={seed} gamma={gamma} delta={delta} "
         f"in=[{vmin},{vmax}] Nin={Nin} K={K} rails=[{vminus_val},{vplus_val}] "
         f"solver={solver} body_tie={body_tie} body_res={body_res} rs_clamp={RS_CLAMP} "
         f"vg_init={vg_init_mode} "
         f"epochs={epochs} "
+        f"onehot_hi={ONEHOT_HI_V} "
         f"device_include={DEVICE_LIB_PATH} subckt={DEVICE_SUBCKT} "
         f"topology={TOPOLOGY_PATH.name}"
     )
 
-    print("=== RUN START (scikit_digits_dense_io_hinge) ===", flush=True)
+    print("=== RUN START (scikit_digits_dense_io_mse_avgappr) ===", flush=True)
     print(cfg_str, flush=True)
     print(f"train={len(train_x)} test={len(test_x)} edges={topo.num_edges}", flush=True)
 
@@ -605,9 +746,12 @@ def main():
         "train_count": len(train_x),
         "test_count": len(test_x),
         "gamma": gamma,
-        "margin": margin,
         "delta": delta,
         "epochs": epochs,
+        "epoch0": "validation_only_onehot",
+        "epoch1": "train_onehot_hard_clamp",
+        "epoch2plus": "train_proto_soft_clamp",
+        "onehot_hi_v": ONEHOT_HI_V,
         "input_vmin": vmin,
         "input_vmax": vmax,
         "rails": {"vminus": vminus_val, "vplus": vplus_val},
@@ -621,10 +765,7 @@ def main():
             "hi": vg_init_hi,
             "fixed": vg_init_single,
         },
-        "device": {
-            "include_path": DEVICE_LIB_PATH,
-            "subckt": DEVICE_SUBCKT,
-        },
+        "device": {"include_path": DEVICE_LIB_PATH, "subckt": DEVICE_SUBCKT},
         "topology": {
             "path": str(TOPOLOGY_PATH),
             "Nin": topo.Nin,
@@ -632,8 +773,6 @@ def main():
             "edges": topo.num_edges,
             "meta": topo.meta,
         },
-        "diagnostics": {"vout_saved": "test"},
-        "diode_source_to_vplus": False,
     }
     (run_dir / "run_meta.json").write_text(json.dumps(meta, indent=2))
 
@@ -644,7 +783,7 @@ def main():
     ng = NgSpiceShared(send_data=False)
     ng.load_circuit(netlist)
 
-    # Nodes list (numeric nodes only)
+    # Nodes list for updates (must cover all D,S nodes)
     net_nodes = [topo.negref, topo.posref] + topo.out_nodes.tolist() + topo.input_nodes.tolist()
     nodes_list = np.asarray(sorted(set(net_nodes)), dtype=int)
 
@@ -654,121 +793,60 @@ def main():
     eD = topo.edges_D
     eS = topo.edges_S
 
-    # Graph export (optional)
+    # Graph export
     try:
         G = nx.DiGraph()
         G.add_nodes_from(nodes_list.tolist())
         for d, s in zip(eD.tolist(), eS.tolist()):
-            G.add_edge(d, s)
+            G.add_edge(int(d), int(s))
         nx.write_graphml(G, str(run_dir / "0.graphml"))
     except Exception:
         pass
 
     # Histories
     val_acc_hist: List[float] = []
-    val_hinge_hist: List[float] = []
+    val_mse_hist: List[float] = []
     tr_acc_hist: List[float] = []
-    tr_hinge_hist: List[float] = []
+    tr_mse_hist: List[float] = []
 
     ep_total_s: List[float] = []
     ep_free_s: List[float] = []
     ep_clamp_s: List[float] = []
     ep_update_s: List[float] = []
 
-    hinge_active_frac_hist: List[float] = []
     reload_free_hist: List[int] = []
     reload_clamp_hist: List[int] = []
     nonfinite_free_hist: List[int] = []
     nonfinite_clamp_hist: List[int] = []
 
-    def eval_free_metrics(epoch: int) -> Tuple[float, float, Dict[str, float]]:
-        mk_free_all(ng, K)
-        correct = 0
-        total = 0
-        loss_sum = 0.0
-        count = 0
-
-        vout_test = np.full((test_n, K), np.nan, dtype=float) if test_n > 0 else np.zeros((0, K), dtype=float)
-        gap_list: List[float] = []
-        sat_list: List[float] = []
-        hinge_list: List[float] = []
-
-        reloads = 0
-        nonfinite = 0
-
-        for i, (xt, yt) in enumerate(zip(test_x, test_y)):
-            alter_inputs_named(ng, xt)
-            ok, _, data, _ = run_and_read(ng, {"out": topo.out_nodes})
-            if not ok or data is None:
-                reloads += 1
-                try:
-                    ng.remove_circuit()
-                except Exception:
-                    pass
-                ng.load_circuit(netlist)
-                restore_gate_voltages(ng, vg_unique)
-                mk_free_all(ng, K)
-                continue
-
-            Vout = np.asarray(data["out"], dtype=float)
-            if not np.all(np.isfinite(Vout)):
-                nonfinite += 1
-                continue
-
-            pred = int(np.argmax(Vout))
-            ytrue = int(yt)
-            correct += int(pred == ytrue)
-            total += 1
-
-            hl = hinge_loss_from_outputs(Vout, ytrue, margin)
-            loss_sum += float(hl)
-            count += 1
-
-            vout_test[i, :] = Vout
-            g = margin_gap(Vout, ytrue)
-            gap_list.append(float(g))
-            sat_list.append(float(1.0 if g >= margin else 0.0))
-            hinge_list.append(float(hl))
-
-        if test_n > 0:
-            np.save(run_dir / f"0_vout_test_epoch{epoch}.npy", vout_test)
-
-        diag: Dict[str, float] = {}
-        if gap_list:
-            gaps = np.asarray(gap_list, dtype=float)
-            sats = np.asarray(sat_list, dtype=float)
-            hinges = np.asarray(hinge_list, dtype=float)
-            diag["test_gap_mean"] = float(np.mean(gaps))
-            diag["test_gap_median"] = float(np.median(gaps))
-            diag["test_gap_std"] = float(np.std(gaps))
-            diag["test_satisfy_frac"] = float(np.mean(sats))
-            diag["test_hinge_mean"] = float(np.mean(hinges))
-        else:
-            diag["test_gap_mean"] = float("nan")
-            diag["test_gap_median"] = float("nan")
-            diag["test_gap_std"] = float("nan")
-            diag["test_satisfy_frac"] = float("nan")
-            diag["test_hinge_mean"] = float("nan")
-
-        diag["val_reloads"] = float(reloads)
-        diag["val_nonfinite"] = float(nonfinite)
-
-        acc = (correct / total) if total else float("nan")
-        loss = (loss_sum / count) if count else float("nan")
-        return float(acc), float(loss), diag
-
-    # Epoch 0 validation
-    v0, h0, diag0 = eval_free_metrics(epoch=0)
-    val_acc_hist.append(v0)
-    val_hinge_hist.append(h0)
-    np.save(run_dir / "0_val_acc.npy", np.asarray(val_acc_hist, dtype=float))
-    np.save(run_dir / "0_val_hinge.npy", np.asarray(val_hinge_hist, dtype=float))
-    (run_dir / "0_diag_epoch0.json").write_text(json.dumps(diag0, indent=2))
-    print(
-        f"[epoch 0] {cfg_str} | VAL acc={v0:.4f} hinge={h0:.6f} test_satisfy={diag0.get('test_satisfy_frac', float('nan')):.4f}",
-        flush=True,
+    # -------------------------
+    # Epoch 0: baseline validation only (one-hot metric)
+    # -------------------------
+    v0, m0, diag0 = eval_free_metrics(
+        ng=ng,
+        topo=topo,
+        netlist=netlist,
+        vg_unique=vg_unique,
+        test_x=test_x,
+        test_y=test_y,
+        K=K,
+        run_dir=run_dir,
+        epoch=0,
+        mode="onehot",
+        proto_out=None,
     )
+    val_acc_hist.append(float(v0))
+    val_mse_hist.append(float(m0))
+    np.save(run_dir / "0_val_acc.npy", np.asarray(val_acc_hist, dtype=float))
+    np.save(run_dir / "0_val_mse.npy", np.asarray(val_mse_hist, dtype=float))
+    (run_dir / "0_diag_epoch0.json").write_text(json.dumps(diag0, indent=2))
+    print(f"[epoch 0] {cfg_str} | VAL(onehot) acc={v0:.4f} mse={m0:.6g}", flush=True)
 
+    # -------------------------
+    # Epochs 1..epochs
+    #   ep==1: one-hot hard clamp targets
+    #   ep>=2: averaging/prototype mode
+    # -------------------------
     for ep in range(1, epochs + 1):
         t_ep0 = time.time()
         order = np.arange(len(train_x))
@@ -776,9 +854,8 @@ def main():
 
         train_correct = 0
         train_total = 0
-        hinge_sum = 0.0
-        hinge_count = 0
-        hinge_active = 0
+        mse_sum = 0.0
+        mse_count = 0
         skipped = 0
 
         reload_free = 0
@@ -792,8 +869,26 @@ def main():
         n_free = 0
         n_clamp = 0
 
+        if ep == 1:
+            mode = "onehot"
+            proto_out = None
+        else:
+            mode = "proto"
+            proto_in = compute_input_prototypes(train_x, train_y, K)
+            proto_out, proto_diag = measure_output_prototypes(
+                ng=ng,
+                topo=topo,
+                netlist=netlist,
+                vg_unique=vg_unique,
+                proto_in=proto_in,
+            )
+            np.save(run_dir / f"0_proto_in_epoch{ep}.npy", proto_in)
+            np.save(run_dir / f"0_proto_out_epoch{ep}.npy", proto_out)
+            (run_dir / f"0_proto_diag_epoch{ep}.json").write_text(json.dumps(proto_diag, indent=2))
+
         for idx in order:
             ytrue = int(train_y[idx])
+
             mk_free_all(ng, K)
 
             # Free
@@ -802,7 +897,7 @@ def main():
             t_free += float(dt)
             n_free += 1
 
-            if not ok or data is None:
+            if (not ok) or (data is None):
                 reload_free += 1
                 try:
                     ng.remove_circuit()
@@ -819,30 +914,37 @@ def main():
                 nonfinite_free += 1
                 continue
 
-            pred, rival = pred_and_rival(Vout, ytrue)
-            train_correct += int(pred == ytrue)
+            # Target + prediction
+            if mode == "onehot":
+                target = onehot_target(ytrue, K)
+                yhat = predict_argmax(Vout)
+            else:
+                assert proto_out is not None
+                target = np.asarray(proto_out[ytrue, :], dtype=float)
+                if not np.all(np.isfinite(target)):
+                    skipped += 1
+                    continue
+                yhat = predict_nearest_proto(Vout, proto_out)
+
+            train_correct += int(yhat == ytrue)
             train_total += 1
 
-            hl = hinge_loss_from_outputs(Vout, ytrue, margin)
-            hinge_sum += float(hl)
-            hinge_count += 1
-
-            if hl <= 0.0:
-                skipped += 1
-                continue
-
-            hinge_active += 1
+            l = mse_to_target(Vout, target)
+            if np.isfinite(l):
+                mse_sum += float(l)
+                mse_count += 1
 
             # Clamp
-            Vy = float(Vout[ytrue])
-            Vr = float(Vout[rival])
-            alter_outputs_hinge(ng, K=K, y=ytrue, r=rival, Vy=Vy, Vr=Vr, delta=delta)
+            if mode == "onehot":
+                alter_outputs_hard_target(ng, target=target, K=K)
+            else:
+                alter_outputs_mse_to_target(ng, Vout_free=Vout, target=target, delta=delta, K=K)
 
-            ok, dt2, data2, _ = run_and_read(ng, {"nodes": nodes_list.tolist()})
+            ok2, dt2, data2, _ = run_and_read(ng, {"nodes": nodes_list.tolist()})
             t_clamp += float(dt2)
             n_clamp += 1
 
-            if not ok or data2 is None:
+            if (not ok2) or (data2 is None):
                 reload_clamp += 1
                 try:
                     ng.remove_circuit()
@@ -873,8 +975,7 @@ def main():
 
             cmds: List[str] = []
             for uid in range(topo.num_edges):
-                du = float(update[uid])
-                nv = float(vg_unique[uid] + du)
+                nv = float(vg_unique[uid] + float(update[uid]))
                 if nv < VG_CLIP_LO:
                     nv = VG_CLIP_LO
                 elif nv > VG_CLIP_HI:
@@ -888,21 +989,42 @@ def main():
             t_update += float(time.time() - upd0)
 
         tr_acc = (train_correct / train_total) if train_total else float("nan")
-        tr_h = (hinge_sum / hinge_count) if hinge_count else float("nan")
+        tr_mse = (mse_sum / mse_count) if mse_count else float("nan")
         tr_acc_hist.append(float(tr_acc))
-        tr_hinge_hist.append(float(tr_h))
+        tr_mse_hist.append(float(tr_mse))
 
-        hinge_active_frac = (hinge_active / n_free) if n_free else float("nan")
-        hinge_active_frac_hist.append(float(hinge_active_frac))
+        # Validation
+        if mode == "onehot":
+            v_acc, v_mse, diag = eval_free_metrics(
+                ng=ng,
+                topo=topo,
+                netlist=netlist,
+                vg_unique=vg_unique,
+                test_x=test_x,
+                test_y=test_y,
+                K=K,
+                run_dir=run_dir,
+                epoch=ep,
+                mode="onehot",
+                proto_out=None,
+            )
+        else:
+            v_acc, v_mse, diag = eval_free_metrics(
+                ng=ng,
+                topo=topo,
+                netlist=netlist,
+                vg_unique=vg_unique,
+                test_x=test_x,
+                test_y=test_y,
+                K=K,
+                run_dir=run_dir,
+                epoch=ep,
+                mode="proto",
+                proto_out=proto_out,
+            )
 
-        reload_free_hist.append(int(reload_free))
-        reload_clamp_hist.append(int(reload_clamp))
-        nonfinite_free_hist.append(int(nonfinite_free))
-        nonfinite_clamp_hist.append(int(nonfinite_clamp))
-
-        v_acc, v_h, diag = eval_free_metrics(epoch=ep)
         val_acc_hist.append(float(v_acc))
-        val_hinge_hist.append(float(v_h))
+        val_mse_hist.append(float(v_mse))
 
         ep_total = float(time.time() - t_ep0)
         ep_total_s.append(ep_total)
@@ -910,18 +1032,22 @@ def main():
         ep_clamp_s.append(float(t_clamp))
         ep_update_s.append(float(t_update))
 
-        # Save arrays each epoch
+        reload_free_hist.append(int(reload_free))
+        reload_clamp_hist.append(int(reload_clamp))
+        nonfinite_free_hist.append(int(nonfinite_free))
+        nonfinite_clamp_hist.append(int(nonfinite_clamp))
+
+        # Save arrays
         np.save(run_dir / "0_train_acc.npy", np.asarray(tr_acc_hist, dtype=float))
-        np.save(run_dir / "0_train_hinge.npy", np.asarray(tr_hinge_hist, dtype=float))
+        np.save(run_dir / "0_train_mse.npy", np.asarray(tr_mse_hist, dtype=float))
         np.save(run_dir / "0_val_acc.npy", np.asarray(val_acc_hist, dtype=float))
-        np.save(run_dir / "0_val_hinge.npy", np.asarray(val_hinge_hist, dtype=float))
+        np.save(run_dir / "0_val_mse.npy", np.asarray(val_mse_hist, dtype=float))
 
         np.save(run_dir / "0_epoch_total_s.npy", np.asarray(ep_total_s, dtype=float))
         np.save(run_dir / "0_epoch_free_s.npy", np.asarray(ep_free_s, dtype=float))
         np.save(run_dir / "0_epoch_clamp_s.npy", np.asarray(ep_clamp_s, dtype=float))
         np.save(run_dir / "0_epoch_update_s.npy", np.asarray(ep_update_s, dtype=float))
 
-        np.save(run_dir / "0_hinge_active_frac.npy", np.asarray(hinge_active_frac_hist, dtype=float))
         np.save(run_dir / "0_reload_free.npy", np.asarray(reload_free_hist, dtype=int))
         np.save(run_dir / "0_reload_clamp.npy", np.asarray(reload_clamp_hist, dtype=int))
         np.save(run_dir / "0_nonfinite_free.npy", np.asarray(nonfinite_free_hist, dtype=int))
@@ -929,69 +1055,41 @@ def main():
 
         np.save(run_dir / f"0_vg_unique_epoch{ep}.npy", vg_unique.copy())
 
-        vg_stats = compute_vg_saturation_stats(vg_unique)
         summary = {
             "epoch": int(ep),
-            "config": {
-                "seed": seed,
-                "gamma": gamma,
-                "margin": margin,
-                "delta": delta,
-                "input_vmin": vmin,
-                "input_vmax": vmax,
-                "rails": [vminus_val, vplus_val],
-                "solver": solver,
-                "body_tie": body_tie,
-                "body_res": body_res,
-                "rs_clamp": RS_CLAMP,
-                "vg_init": {
-                    "mode": vg_init_mode,
-                    "lo": vg_init_lo,
-                    "hi": vg_init_hi,
-                    "fixed": vg_init_single,
-                },
-                "epochs": epochs,
-                "device_include_path": DEVICE_LIB_PATH,
-                "device_subckt": DEVICE_SUBCKT,
-            },
+            "mode": mode,
             "train": {
                 "acc": float(tr_acc),
-                "hinge": float(tr_h),
+                "mse": float(tr_mse),
                 "n_free": int(n_free),
                 "n_clamp": int(n_clamp),
-                "hinge_active": int(hinge_active),
-                "hinge_active_frac": float(hinge_active_frac),
                 "skipped": int(skipped),
                 "reload_free": int(reload_free),
                 "reload_clamp": int(reload_clamp),
                 "nonfinite_free": int(nonfinite_free),
                 "nonfinite_clamp": int(nonfinite_clamp),
             },
-            "val": {"acc": float(v_acc), "hinge": float(v_h), **{k: float(v) for k, v in diag.items()}},
+            "val": {"acc": float(v_acc), "mse": float(v_mse), **diag},
             "timing_s": {
                 "epoch_total": float(ep_total),
                 "train_free": float(t_free),
                 "train_clamp": float(t_clamp),
                 "train_update": float(t_update),
             },
-            "vg_stats": vg_stats,
         }
         (run_dir / f"0_epoch_summary_epoch{ep}.json").write_text(json.dumps(summary, indent=2))
         (run_dir / f"0_diag_epoch{ep}.json").write_text(json.dumps(diag, indent=2))
 
-        # Clean epoch prints (config repeated each epoch)
         print(
             f"[epoch {ep}/{epochs}] {cfg_str} | "
-            f"TRAIN acc={tr_acc:.4f} hinge={tr_h:.6f} hinge_frac={hinge_active_frac:.3f} "
+            f"TRAIN({mode}) acc={tr_acc:.4f} mse={tr_mse:.6g} "
             f"free={n_free} clamp={n_clamp} skipped={skipped} "
             f"reloadF={reload_free} reloadC={reload_clamp} nonfiniteF={nonfinite_free} nonfiniteC={nonfinite_clamp}",
             flush=True,
         )
         print(
             f"[epoch {ep}/{epochs}] {cfg_str} | "
-            f"VAL acc={v_acc:.4f} hinge={v_h:.6f} "
-            f"test_satisfy={diag.get('test_satisfy_frac', float('nan')):.4f} "
-            f"test_gap_mean={diag.get('test_gap_mean', float('nan')):.4f} | "
+            f"VAL({mode}) acc={v_acc:.4f} mse={v_mse:.6g} | "
             f"timing total={ep_total:.2f}s free={t_free:.2f}s clamp={t_clamp:.2f}s upd={t_update:.2f}s",
             flush=True,
         )
@@ -1000,7 +1098,6 @@ def main():
             save_plots(run_dir)
         except Exception:
             pass
-
 
     # latest symlink
     latest = results_dir / "latest"
@@ -1017,7 +1114,7 @@ def main():
     if args.final_test:
         print("FINAL val acc=", val_acc_hist[-1] if val_acc_hist else float("nan"), flush=True)
 
-    print("=== RUN END (scikit_digits_dense_io_hinge) ===", flush=True)
+    print("=== RUN END (scikit_digits_dense_io_mse_avgappr) ===", flush=True)
     try:
         log_f.flush()
         log_f.close()
