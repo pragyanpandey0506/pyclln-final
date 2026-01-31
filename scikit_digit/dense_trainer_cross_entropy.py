@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """
 Scikit Digits — dense input→output NMOS network (no hidden nodes)
-Hinge loss training (SGD, no batching) with two-phase (free / clamp) ngspice runs.
+Cross-entropy training (SGD, no batching) with two-phase (free / clamp) ngspice runs.
 
 Key behavior:
   - Dataset: sklearn digits 8x8 (default; no crop options).
-  - Topology: loaded from NPZ (digits_8x8_dense_io_x3), with parallel edges per input/output.
+  - Topology: loaded from NPZ (digits_8x8_dense_io_x1), with parallel edges per input/output.
   - Init VG: random in [VG_INIT_LO, VG_INIT_HI] or fixed VG_INIT_SINGLE via --vg-init.
-  - Per-sample training:
-      1) Free phase:   RS all = 1e12 (outputs effectively unclamped), run .op
-      2) Compute hinge. If inactive, skip clamp + update.
-      3) Clamp phase: clamp only y and rival outputs via RS=RS_CLAMP and nudged VOUT sources.
-      4) Update: dVG_e = -gamma * ( (dV_e^C)^2 - (dV_e^F)^2 ), clip to [0.4, 10.0]
+  - Per-sample training (cross entropy):
+      1) Free phase:   RS all = RS_FREE (outputs effectively unclamped), run .op
+      2) Compute softmax probabilities p = softmax(Vout / T)
+      3) Clamp phase (TRUE K-class CE signal):
+           - Clamp ALL outputs via RS=RS_CLAMP
+           - Set VOUTk to Vk^C = Vk^F + delta * (qk - pk), where q is one-hot for y
+      4) Update: dVG_e = -gamma * ( (dV_e^C)^2 - (dV_e^F)^2 ), clip to [VG_CLIP_LO, VG_CLIP_HI]
   - Epochs:
       * Run a fixed number of epochs (default 20).
   - Logging:
@@ -31,7 +33,7 @@ Paths:
   - Device include file (repo-relative):
       device_model/nmos_lvl1_ald1106.lib
   - Topology file (repo-relative):
-      scikit_digit/topology/digits_8x8_dense_io_x3.npz
+      scikit_digit/topology/digits_8x8_dense_io_x1.npz
   - Script location (repo-relative):
       scikit_digit/dense_trainer.py
 """
@@ -67,7 +69,6 @@ from topology.topology_io import Topology, load_topology_npz
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEVICE_LIB_PATH = str(REPO_ROOT / "device_model" / "nmos_lvl1_ald1106.lib")
 DEVICE_SUBCKT = "NMOSWRAP"
-#TOPOLOGY_PATH = REPO_ROOT / "scikit_digit" / "topology" / "digits_8x8_dense_io_x1.npz"
 TOPOLOGY_PATH = REPO_ROOT / "scikit_digit" / "topology" / "random_topology_0799.npz"
 #TOPOLOGY_PATH = REPO_ROOT / "scikit_digit" / "topology" / "digits_8x8_dense_io_x1_pruned_vglt0p75_epoch20_run20260110-235531.npz"
 
@@ -131,7 +132,7 @@ def setup_logging(run_dir: Path):
 # -------------------------
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Scikit Digits — dense input→output NMOS network, hinge loss, ngspice"
+        description="Scikit Digits — dense input→output NMOS network, cross entropy, ngspice"
     )
     p.add_argument("seed", type=int, nargs="?", default=0)
 
@@ -140,8 +141,13 @@ def parse_args():
 
     # Learning hyperparams
     p.add_argument("--gamma", type=float, default=0.3)
-    p.add_argument("--margin", type=float, default=0.02, help="hinge margin m (volts)")
-    p.add_argument("--delta", type=float, default=0.05, help="clamp nudge delta (volts)")
+    p.add_argument("--delta", type=float, default=0.3, help="clamp nudge scale delta (volts)")
+    p.add_argument(
+        "--softmax-temp",
+        type=float,
+        default=1.0,
+        help="softmax temperature T (probabilities use softmax(Vout / T)); default 1.0",
+    )
 
     # Input mapping
     p.add_argument("--input-vmin", type=float, default=0.0)
@@ -265,25 +271,52 @@ def mk_free_all(ng: NgSpiceShared, K: int):
     exec_chunked(ng, [f"alter RS{i} {RS_FREE:.6g}" for i in range(1, K + 1)])
 
 
-def alter_outputs_hinge(
+def softmax_logits(z: np.ndarray) -> np.ndarray:
+    z = np.asarray(z, dtype=float)
+    m = float(np.max(z))
+    ez = np.exp(z - m)
+    s = float(np.sum(ez))
+    if not np.isfinite(s) or s <= 0.0:
+        return np.full_like(z, 1.0 / float(z.size), dtype=float)
+    return ez / s
+
+
+def alter_outputs_xent(
     ng: NgSpiceShared,
     K: int,
     y: int,
-    r: int,
-    Vy: float,
-    Vr: float,
+    Vout_free: np.ndarray,
     delta: float,
+    temp: float,
 ):
-    # Set all free
-    cmds: List[str] = [f"alter RS{i} {RS_FREE:.6g}" for i in range(1, K + 1)]
-    # Clamp y and rival through RS=RS_CLAMP
-    cmds.append(f"alter RS{y+1} {RS_CLAMP:.6g}")
-    cmds.append(f"alter RS{r+1} {RS_CLAMP:.6g}")
+    """
+    TRUE K-class cross-entropy clamp target:
+      p = softmax(Vout_free / temp)
+      q = onehot(y)
+      Vout_clamp = Vout_free + delta * (q - p)
 
-    Vy_c = float(Vy + 0.5 * delta)
-    Vr_c = float(Vr - 0.5 * delta)
-    cmds.append(f"alter VOUT{y} dc = {Vy_c:.16f}")
-    cmds.append(f"alter VOUT{r} dc = {Vr_c:.16f}")
+    And we clamp ALL outputs (RS_i = RS_CLAMP for i=1..K).
+    """
+    if temp <= 0.0:
+        raise ValueError("--softmax-temp must be > 0")
+
+    z = np.asarray(Vout_free, dtype=float) / float(temp)
+    p = softmax_logits(z)
+
+    q = np.zeros(K, dtype=float)
+    q[int(y)] = 1.0
+
+    dV = float(delta) * (q - p)
+    Vc = np.asarray(Vout_free, dtype=float) + dV
+
+    cmds: List[str] = []
+    # Clamp all outputs
+    for i in range(1, K + 1):
+        cmds.append(f"alter RS{i} {RS_CLAMP:.6g}")
+    # Set all output sources
+    for k in range(K):
+        cmds.append(f"alter VOUT{k} dc = {float(Vc[k]):.16f}")
+
     exec_chunked(ng, cmds)
 
 
@@ -300,7 +333,7 @@ def mk_netlist(
         raise ValueError("vg_unique size mismatch")
 
     lines: List[str] = []
-    lines.append(".title scikit_digits_dense_io_hinge")
+    lines.append(".title scikit_digits_dense_io_xent")
     lines.append(f'.include "{DEVICE_LIB_PATH}"')
 
     if solver.lower() == "klu":
@@ -370,28 +403,25 @@ def mk_netlist(
 # -------------------------
 # Metrics
 # -------------------------
-def hinge_loss_from_outputs(V: np.ndarray, y: int, margin: float) -> float:
-    Vy = float(V[y])
-    V2 = V.copy()
-    V2[y] = -np.inf
-    Vr = float(np.max(V2))
-    return float(max(0.0, margin - (Vy - Vr)))
+def cross_entropy_from_outputs(V: np.ndarray, y: int, temp: float) -> Tuple[float, float]:
+    """
+    Returns (CE loss, p_true) for logits = V/temp.
+    CE = -log p_y, with p from softmax.
+    """
+    if temp <= 0.0:
+        return float("inf"), float("nan")
+    z = np.asarray(V, dtype=float) / float(temp)
+    p = softmax_logits(z)
+    py = float(p[int(y)])
+    if not np.isfinite(py):
+        return float("inf"), float("nan")
+    if py < 1e-12:
+        py = 1e-12
+    return float(-np.log(py)), float(py)
 
 
-def margin_gap(V: np.ndarray, y: int) -> float:
-    Vy = float(V[y])
-    V2 = V.copy()
-    V2[y] = -np.inf
-    Vr = float(np.max(V2))
-    return float(Vy - Vr)
-
-
-def pred_and_rival(V: np.ndarray, y: int) -> Tuple[int, int]:
-    pred = int(np.argmax(V))
-    V2 = V.copy()
-    V2[y] = -np.inf
-    rival = int(np.argmax(V2))
-    return pred, rival
+def pred_label(V: np.ndarray) -> int:
+    return int(np.argmax(np.asarray(V, dtype=float)))
 
 
 def restore_gate_voltages(ng: NgSpiceShared, vg_unique: np.ndarray):
@@ -414,16 +444,14 @@ def save_plots(run_dir: Path):
         return np.load(p) if p.exists() else None
 
     tr_acc = _load("0_train_acc.npy")
-    tr_h = _load("0_train_hinge.npy")
+    tr_ce = _load("0_train_ce.npy")
     va_acc = _load("0_val_acc.npy")
-    va_h = _load("0_val_hinge.npy")
+    va_ce = _load("0_val_ce.npy")
 
     ep_total = _load("0_epoch_total_s.npy")
     ep_free = _load("0_epoch_free_s.npy")
     ep_clamp = _load("0_epoch_clamp_s.npy")
     ep_upd = _load("0_epoch_update_s.npy")
-
-    hinge_frac = _load("0_hinge_active_frac.npy")
 
     if tr_acc is not None and va_acc is not None:
         plt.figure()
@@ -438,17 +466,17 @@ def save_plots(run_dir: Path):
         plt.savefig(run_dir / "learning_curves_acc.png", dpi=160)
         plt.close()
 
-    if tr_h is not None and va_h is not None:
+    if tr_ce is not None and va_ce is not None:
         plt.figure()
-        plt.plot(np.arange(len(va_h)), va_h, label="val hinge")
-        plt.plot(np.arange(1, len(tr_h) + 1), tr_h, label="train hinge")
+        plt.plot(np.arange(len(va_ce)), va_ce, label="val CE")
+        plt.plot(np.arange(1, len(tr_ce) + 1), tr_ce, label="train CE")
         plt.xlabel("epoch")
-        plt.ylabel("hinge loss")
-        plt.title("Hinge loss vs epoch")
+        plt.ylabel("cross entropy")
+        plt.title("Cross entropy vs epoch")
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        plt.savefig(run_dir / "learning_curves_hinge.png", dpi=160)
+        plt.savefig(run_dir / "learning_curves_ce.png", dpi=160)
         plt.close()
 
     if ep_total is not None and ep_free is not None and ep_clamp is not None and ep_upd is not None:
@@ -467,19 +495,6 @@ def save_plots(run_dir: Path):
         plt.savefig(run_dir / "timing.png", dpi=160)
         plt.close()
 
-    if hinge_frac is not None:
-        e = np.arange(1, len(hinge_frac) + 1)
-        plt.figure()
-        plt.plot(e, hinge_frac, label="hinge active fraction")
-        plt.xlabel("epoch")
-        plt.ylabel("fraction")
-        plt.title("Hinge-active fraction vs epoch")
-        plt.grid(True)
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(run_dir / "hinge_active.png", dpi=160)
-        plt.close()
-
 
 # -------------------------
 # Main
@@ -495,12 +510,14 @@ def main():
         raise ValueError("--epochs must be >= 1")
 
     gamma = float(args.gamma)
-    margin = float(args.margin)
     delta = float(args.delta)
+    temp = float(args.softmax_temp)
     vmin = float(args.input_vmin)
     vmax = float(args.input_vmax)
     if vmax <= vmin:
         raise ValueError("--input-vmax must be > --input-vmin")
+    if temp <= 0.0:
+        raise ValueError("--softmax-temp must be > 0")
 
     vminus_val = float(args.vminus)
     vplus_val = float(args.vplus)
@@ -571,7 +588,7 @@ def main():
     log_f = setup_logging(run_dir)
 
     cfg_str = (
-        f"seed={seed} gamma={gamma} delta={delta} margin={margin} "
+        f"seed={seed} gamma={gamma} delta={delta} T={temp} "
         f"in=[{vmin},{vmax}] Nin={Nin} K={K} rails=[{vminus_val},{vplus_val}] "
         f"solver={solver} body_tie={body_tie} body_res={body_res} rs_clamp={RS_CLAMP} "
         f"vg_init={vg_init_mode} "
@@ -580,7 +597,7 @@ def main():
         f"topology={TOPOLOGY_PATH.name}"
     )
 
-    print("=== RUN START (scikit_digits_dense_io_hinge) ===", flush=True)
+    print("=== RUN START (scikit_digits_dense_io_xent) ===", flush=True)
     print(cfg_str, flush=True)
     print(f"train={len(train_x)} test={len(test_x)} edges={topo.num_edges}", flush=True)
 
@@ -606,8 +623,8 @@ def main():
         "train_count": len(train_x),
         "test_count": len(test_x),
         "gamma": gamma,
-        "margin": margin,
         "delta": delta,
+        "softmax_temp": temp,
         "epochs": epochs,
         "input_vmin": vmin,
         "input_vmax": vmax,
@@ -633,6 +650,7 @@ def main():
             "edges": topo.num_edges,
             "meta": topo.meta,
         },
+        "loss": "cross_entropy",
         "diagnostics": {"vout_saved": "test"},
         "diode_source_to_vplus": False,
     }
@@ -667,16 +685,15 @@ def main():
 
     # Histories
     val_acc_hist: List[float] = []
-    val_hinge_hist: List[float] = []
+    val_ce_hist: List[float] = []
     tr_acc_hist: List[float] = []
-    tr_hinge_hist: List[float] = []
+    tr_ce_hist: List[float] = []
 
     ep_total_s: List[float] = []
     ep_free_s: List[float] = []
     ep_clamp_s: List[float] = []
     ep_update_s: List[float] = []
 
-    hinge_active_frac_hist: List[float] = []
     reload_free_hist: List[int] = []
     reload_clamp_hist: List[int] = []
     nonfinite_free_hist: List[int] = []
@@ -690,13 +707,12 @@ def main():
         count = 0
 
         vout_test = np.full((test_n, K), np.nan, dtype=float) if test_n > 0 else np.zeros((0, K), dtype=float)
-        gap_list: List[float] = []
-        sat_list: List[float] = []
-        hinge_list: List[float] = []
 
         reloads = 0
         nonfinite = 0
         confusion = np.zeros((K, K), dtype=int)
+
+        py_list: List[float] = []
 
         for i, (xt, yt) in enumerate(zip(test_x, test_y)):
             alter_inputs_named(ng, xt)
@@ -717,60 +733,43 @@ def main():
                 nonfinite += 1
                 continue
 
-            pred = int(np.argmax(Vout))
             ytrue = int(yt)
+            pred = pred_label(Vout)
             correct += int(pred == ytrue)
             total += 1
             if 0 <= ytrue < K:
                 confusion[ytrue, pred] += 1
 
-            hl = hinge_loss_from_outputs(Vout, ytrue, margin)
-            loss_sum += float(hl)
+            ce, py = cross_entropy_from_outputs(Vout, ytrue, temp=temp)
+            loss_sum += float(ce)
             count += 1
+            if np.isfinite(py):
+                py_list.append(float(py))
 
             vout_test[i, :] = Vout
-            g = margin_gap(Vout, ytrue)
-            gap_list.append(float(g))
-            sat_list.append(float(1.0 if g >= margin else 0.0))
-            hinge_list.append(float(hl))
 
         if test_n > 0:
             np.save(run_dir / f"0_vout_test_epoch{epoch}.npy", vout_test)
             np.save(run_dir / f"0_val_confusion_epoch{epoch}.npy", confusion)
 
         diag: Dict[str, float] = {}
-        if gap_list:
-            gaps = np.asarray(gap_list, dtype=float)
-            sats = np.asarray(sat_list, dtype=float)
-            hinges = np.asarray(hinge_list, dtype=float)
-            diag["test_gap_mean"] = float(np.mean(gaps))
-            diag["test_gap_median"] = float(np.median(gaps))
-            diag["test_gap_std"] = float(np.std(gaps))
-            diag["test_satisfy_frac"] = float(np.mean(sats))
-            diag["test_hinge_mean"] = float(np.mean(hinges))
-        else:
-            diag["test_gap_mean"] = float("nan")
-            diag["test_gap_median"] = float("nan")
-            diag["test_gap_std"] = float("nan")
-            diag["test_satisfy_frac"] = float("nan")
-            diag["test_hinge_mean"] = float("nan")
-
         diag["val_reloads"] = float(reloads)
         diag["val_nonfinite"] = float(nonfinite)
+        diag["val_py_true_mean"] = float(np.mean(py_list)) if py_list else float("nan")
 
         acc = (correct / total) if total else float("nan")
         loss = (loss_sum / count) if count else float("nan")
         return float(acc), float(loss), diag
 
     # Epoch 0 validation
-    v0, h0, diag0 = eval_free_metrics(epoch=0)
+    v0, ce0, diag0 = eval_free_metrics(epoch=0)
     val_acc_hist.append(v0)
-    val_hinge_hist.append(h0)
+    val_ce_hist.append(ce0)
     np.save(run_dir / "0_val_acc.npy", np.asarray(val_acc_hist, dtype=float))
-    np.save(run_dir / "0_val_hinge.npy", np.asarray(val_hinge_hist, dtype=float))
+    np.save(run_dir / "0_val_ce.npy", np.asarray(val_ce_hist, dtype=float))
     (run_dir / "0_diag_epoch0.json").write_text(json.dumps(diag0, indent=2))
     print(
-        f"[epoch 0] {cfg_str} | VAL acc={v0:.4f} hinge={h0:.6f} test_satisfy={diag0.get('test_satisfy_frac', float('nan')):.4f}",
+        f"[epoch 0] {cfg_str} | VAL acc={v0:.4f} CE={ce0:.6f} py_true_mean={diag0.get('val_py_true_mean', float('nan')):.4f}",
         flush=True,
     )
 
@@ -781,10 +780,8 @@ def main():
 
         train_correct = 0
         train_total = 0
-        hinge_sum = 0.0
-        hinge_count = 0
-        hinge_active = 0
-        skipped = 0
+        ce_sum = 0.0
+        ce_count = 0
 
         reload_free = 0
         reload_clamp = 0
@@ -824,24 +821,18 @@ def main():
                 nonfinite_free += 1
                 continue
 
-            pred, rival = pred_and_rival(Vout, ytrue)
+            pred = pred_label(Vout)
             train_correct += int(pred == ytrue)
             train_total += 1
 
-            hl = hinge_loss_from_outputs(Vout, ytrue, margin)
-            hinge_sum += float(hl)
-            hinge_count += 1
+            ce, _ = cross_entropy_from_outputs(Vout, ytrue, temp=temp)
+            ce_sum += float(ce)
+            ce_count += 1
 
-            if hl <= 0.0:
-                skipped += 1
-                continue
-
-            hinge_active += 1
-
-            # Clamp
-            Vy = float(Vout[ytrue])
-            Vr = float(Vout[rival])
-            alter_outputs_hinge(ng, K=K, y=ytrue, r=rival, Vy=Vy, Vr=Vr, delta=delta)
+            # Clamp (TRUE K-class CE)
+            clamp0 = time.time()
+            alter_outputs_xent(ng, K=K, y=ytrue, Vout_free=Vout, delta=delta, temp=temp)
+            t_clamp += float(time.time() - clamp0)
 
             ok, dt2, data2, _ = run_and_read(ng, {"nodes": nodes_list.tolist()})
             t_clamp += float(dt2)
@@ -863,7 +854,7 @@ def main():
                 nonfinite_clamp += 1
                 continue
 
-            # Update
+            # Update (unchanged)
             upd0 = time.time()
 
             Vd_free = Vnodes_free[index_of[eD]]
@@ -893,21 +884,18 @@ def main():
             t_update += float(time.time() - upd0)
 
         tr_acc = (train_correct / train_total) if train_total else float("nan")
-        tr_h = (hinge_sum / hinge_count) if hinge_count else float("nan")
+        tr_ce = (ce_sum / ce_count) if ce_count else float("nan")
         tr_acc_hist.append(float(tr_acc))
-        tr_hinge_hist.append(float(tr_h))
-
-        hinge_active_frac = (hinge_active / n_free) if n_free else float("nan")
-        hinge_active_frac_hist.append(float(hinge_active_frac))
+        tr_ce_hist.append(float(tr_ce))
 
         reload_free_hist.append(int(reload_free))
         reload_clamp_hist.append(int(reload_clamp))
         nonfinite_free_hist.append(int(nonfinite_free))
         nonfinite_clamp_hist.append(int(nonfinite_clamp))
 
-        v_acc, v_h, diag = eval_free_metrics(epoch=ep)
+        v_acc, v_ce, diag = eval_free_metrics(epoch=ep)
         val_acc_hist.append(float(v_acc))
-        val_hinge_hist.append(float(v_h))
+        val_ce_hist.append(float(v_ce))
 
         ep_total = float(time.time() - t_ep0)
         ep_total_s.append(ep_total)
@@ -917,16 +905,15 @@ def main():
 
         # Save arrays each epoch
         np.save(run_dir / "0_train_acc.npy", np.asarray(tr_acc_hist, dtype=float))
-        np.save(run_dir / "0_train_hinge.npy", np.asarray(tr_hinge_hist, dtype=float))
+        np.save(run_dir / "0_train_ce.npy", np.asarray(tr_ce_hist, dtype=float))
         np.save(run_dir / "0_val_acc.npy", np.asarray(val_acc_hist, dtype=float))
-        np.save(run_dir / "0_val_hinge.npy", np.asarray(val_hinge_hist, dtype=float))
+        np.save(run_dir / "0_val_ce.npy", np.asarray(val_ce_hist, dtype=float))
 
         np.save(run_dir / "0_epoch_total_s.npy", np.asarray(ep_total_s, dtype=float))
         np.save(run_dir / "0_epoch_free_s.npy", np.asarray(ep_free_s, dtype=float))
         np.save(run_dir / "0_epoch_clamp_s.npy", np.asarray(ep_clamp_s, dtype=float))
         np.save(run_dir / "0_epoch_update_s.npy", np.asarray(ep_update_s, dtype=float))
 
-        np.save(run_dir / "0_hinge_active_frac.npy", np.asarray(hinge_active_frac_hist, dtype=float))
         np.save(run_dir / "0_reload_free.npy", np.asarray(reload_free_hist, dtype=int))
         np.save(run_dir / "0_reload_clamp.npy", np.asarray(reload_clamp_hist, dtype=int))
         np.save(run_dir / "0_nonfinite_free.npy", np.asarray(nonfinite_free_hist, dtype=int))
@@ -940,8 +927,8 @@ def main():
             "config": {
                 "seed": seed,
                 "gamma": gamma,
-                "margin": margin,
                 "delta": delta,
+                "softmax_temp": temp,
                 "input_vmin": vmin,
                 "input_vmax": vmax,
                 "rails": [vminus_val, vplus_val],
@@ -958,21 +945,19 @@ def main():
                 "epochs": epochs,
                 "device_include_path": DEVICE_LIB_PATH,
                 "device_subckt": DEVICE_SUBCKT,
+                "loss": "cross_entropy",
             },
             "train": {
                 "acc": float(tr_acc),
-                "hinge": float(tr_h),
+                "ce": float(tr_ce),
                 "n_free": int(n_free),
                 "n_clamp": int(n_clamp),
-                "hinge_active": int(hinge_active),
-                "hinge_active_frac": float(hinge_active_frac),
-                "skipped": int(skipped),
                 "reload_free": int(reload_free),
                 "reload_clamp": int(reload_clamp),
                 "nonfinite_free": int(nonfinite_free),
                 "nonfinite_clamp": int(nonfinite_clamp),
             },
-            "val": {"acc": float(v_acc), "hinge": float(v_h), **{k: float(v) for k, v in diag.items()}},
+            "val": {"acc": float(v_acc), "ce": float(v_ce), **{k: float(v) for k, v in diag.items()}},
             "timing_s": {
                 "epoch_total": float(ep_total),
                 "train_free": float(t_free),
@@ -987,16 +972,15 @@ def main():
         # Clean epoch prints (config repeated each epoch)
         print(
             f"[epoch {ep}/{epochs}] {cfg_str} | "
-            f"TRAIN acc={tr_acc:.4f} hinge={tr_h:.6f} hinge_frac={hinge_active_frac:.3f} "
-            f"free={n_free} clamp={n_clamp} skipped={skipped} "
+            f"TRAIN acc={tr_acc:.4f} CE={tr_ce:.6f} "
+            f"free={n_free} clamp={n_clamp} "
             f"reloadF={reload_free} reloadC={reload_clamp} nonfiniteF={nonfinite_free} nonfiniteC={nonfinite_clamp}",
             flush=True,
         )
         print(
             f"[epoch {ep}/{epochs}] {cfg_str} | "
-            f"VAL acc={v_acc:.4f} hinge={v_h:.6f} "
-            f"test_satisfy={diag.get('test_satisfy_frac', float('nan')):.4f} "
-            f"test_gap_mean={diag.get('test_gap_mean', float('nan')):.4f} | "
+            f"VAL acc={v_acc:.4f} CE={v_ce:.6f} "
+            f"py_true_mean={diag.get('val_py_true_mean', float('nan')):.4f} | "
             f"timing total={ep_total:.2f}s free={t_free:.2f}s clamp={t_clamp:.2f}s upd={t_update:.2f}s",
             flush=True,
         )
@@ -1005,7 +989,6 @@ def main():
             save_plots(run_dir)
         except Exception:
             pass
-
 
     # latest symlink
     latest = results_dir / "latest"
@@ -1022,7 +1005,7 @@ def main():
     if args.final_test:
         print("FINAL val acc=", val_acc_hist[-1] if val_acc_hist else float("nan"), flush=True)
 
-    print("=== RUN END (scikit_digits_dense_io_hinge) ===", flush=True)
+    print("=== RUN END (scikit_digits_dense_io_xent) ===", flush=True)
     try:
         log_f.flush()
         log_f.close()

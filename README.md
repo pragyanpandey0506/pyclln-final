@@ -30,11 +30,18 @@ Run the sweep launcher:
 python3 scikit_digit/auto_prune_sweep.py
 ```
 
+Run the cross-entropy sweep launcher:
+```
+python3 scikit_digit/xent_sweep.py
+```
+
 ## Scripts
 - `scikit_digit/dense_trainer.py`: hinge-loss trainer; loads topology from `.npz`.
 - `scikit_digit/auto_prune_trainer.py`: hinge-loss trainer with edge pruning.
 - `scikit_digit/auto_prune_sweep.py`: sweep launcher (writes under `scikit_digit/results/auto_prune_sweep_11jan2026`).
 - `scikit_digit/dense_trainer_avgappr.py`: MSE-based trainer with prototype/averaging behavior.
+- `scikit_digit/dense_trainer_cross_entropy.py`: cross-entropy trainer with softmax temperature.
+- `scikit_digit/xent_sweep.py`: cross-entropy sweep launcher (writes under `scikit_digit/results/xent_sweep_11jan2026`).
 - `scikit_digit/topology/topology_heatmap.ipynb`: visualizes per-output input connectivity heatmaps.
 
 ## Notes
