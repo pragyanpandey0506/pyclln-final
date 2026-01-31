@@ -1,0 +1,80 @@
+{
+  "script": "/home/ma-lab/Desktop/pyclln-final/scikit_digit/dense_trainer_cross_entropy.py",
+  "argv": [
+    "scikit_digit/dense_trainer_cross_entropy.py",
+    "0",
+    "--epochs",
+    "10",
+    "--gamma",
+    "0.3",
+    "--delta",
+    "0.25",
+    "--softmax-temp",
+    "0.001",
+    "--body-tie",
+    "floating",
+    "--vg-init",
+    "fixed",
+    "--vg-init-fixed",
+    "4"
+  ],
+  "seed": 0,
+  "timestamp": "2026-01-22T14:46:01.678512",
+  "dataset": "sklearn_digits",
+  "input_shape": [
+    8,
+    8
+  ],
+  "train_count": 1437,
+  "test_count": 360,
+  "gamma": 0.3,
+  "delta": 0.25,
+  "softmax_temp": 0.001,
+  "epochs": 10,
+  "input_vmin": 0.0,
+  "input_vmax": 1.0,
+  "rails": {
+    "vminus": 0.0,
+    "vplus": 0.45
+  },
+  "solver": "klu",
+  "body_tie": "floating",
+  "body_res": 10.0,
+  "rs_clamp": 10.0,
+  "vg_init": {
+    "mode": "fixed",
+    "lo": 1.0,
+    "hi": 3.0,
+    "fixed": 4.0
+  },
+  "device": {
+    "include_path": "/home/ma-lab/Desktop/pyclln-final/device_model/nmos_lvl1_ald1106.lib",
+    "subckt": "NMOSWRAP"
+  },
+  "topology": {
+    "path": "/home/ma-lab/Desktop/pyclln-final/scikit_digit/topology/random_topology_0799.npz",
+    "Nin": 64,
+    "out": 10,
+    "edges": 571,
+    "meta": {
+      "type": "fully_connected_input_output",
+      "Nin": 64,
+      "K": 10,
+      "copies_per_pair": 1,
+      "edges": 640,
+      "ordering": "uid=((i*K)+k)*copies + c",
+      "auto_prune_epoch_topology": {
+        "source_run": "scikit_digit/results/auto_prune_sweep_11jan2026/run_0799_seed1_g3_d0.02_m0.02_btfloating_vgrand1to6",
+        "epoch": 64,
+        "vg_cutoff": 0.75,
+        "vg_cutoff_epochs": 4,
+        "remaining_edges": 571
+      }
+    }
+  },
+  "loss": "cross_entropy",
+  "diagnostics": {
+    "vout_saved": "test"
+  },
+  "diode_source_to_vplus": false
+}
