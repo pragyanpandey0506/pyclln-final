@@ -1,0 +1,1265 @@
+#!/usr/bin/env python3
+"""
+CLLN language generation trainer — dense 24-bit input -> 16-word output NMOS network
+Hinge-style set-valued training (SGD, no batching) with two-phase (free / clamp) ngspice runs.
+
+Task:
+  - Synthetic next-token prediction on a 16-word vocabulary.
+  - Context window: 6 tokens.
+  - Token encoding: fixed 4-bit binary code per token.
+  - Input dimension: 6 * 4 = 24 input nodes.
+  - Output dimension: 16 output nodes, one per vocabulary word.
+
+Topology:
+  - No hidden nodes.
+  - Every input node is connected to every output node by exactly one NMOS edge.
+  - Total trainable edges = 24 * 16 = 384.
+
+Learning rule:
+  1) Build a context-conditioned positive set P(x):
+       P(x) = all next words observed in the TRAINING set after exact context x
+     Negatives are N(x) = vocabulary \ P(x).
+  2) Free phase: outputs effectively unclamped (RS all = RS_FREE), run .op
+  3) Let s_k = Vout_k^F. Using hinge margin m:
+       violating positives  = {p in P(x): s_p < max_{n in N(x)} s_n + m}
+       violating negatives  = {n in N(x): s_n > min_{p in P(x)} s_p - m}
+  4) Clamp phase:
+       - clamp UP all violating positives: Vout_p^C = Vout_p^F + delta
+       - clamp DOWN all violating negatives: Vout_n^C = Vout_n^F - delta
+       - leave all non-violating outputs effectively unclamped
+  5) Update each gate voltage by
+         dVG_e = -gamma * ( (dV_e^C)^2 - (dV_e^F)^2 )
+     then clip to [VG_CLIP_LO, VG_CLIP_HI].
+
+Recommended first use:
+  python lang_model/clln_language_dense_trainer_16.py 0 --epochs 20 --num-sentences 1000
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import random
+import sys
+import time
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Sequence, Set, Tuple
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+from PySpice.Spice.NgSpice.Shared import NgSpiceShared
+from sklearn.model_selection import train_test_split
+
+
+# -------------------------
+# Paths / device model
+# -------------------------
+def find_repo_root() -> Path:
+    here = Path(__file__).resolve()
+    candidates = [here.parent] + list(here.parents)
+    for cand in candidates:
+        if (cand / "device_model" / "nmos_lvl1_ald1106.lib").exists():
+            return cand
+    return here.parent
+
+
+REPO_ROOT = find_repo_root()
+DEFAULT_DEVICE_LIB_PATH = str(REPO_ROOT / "device_model" / "nmos_lvl1_ald1106.lib")
+DEVICE_SUBCKT = "NMOSWRAP"
+VG_CLIP_LO, VG_CLIP_HI = 0.4, 8.0
+VG_INIT_SINGLE = 2.0
+RS_FREE = 1e9
+RS_CLAMP = 10.0
+
+CONTEXT_LEN = 6
+TOKEN_BITS = 4
+VOCAB_SIZE = 16
+INPUT_DIM = CONTEXT_LEN * TOKEN_BITS  # 24
+OUTPUT_DIM = VOCAB_SIZE               # 16
+
+
+# -------------------------
+# Vocabulary / synthetic grammar
+# -------------------------
+VOCAB: List[str] = [
+    "<BOS>", "<EOS>",
+    "the", "a",
+    "cat", "dog", "boy", "girl", "ball", "mat",
+    "runs", "sees", "likes", "is", "red", "on",
+]
+assert len(VOCAB) == VOCAB_SIZE
+WORD_TO_ID: Dict[str, int] = {w: i for i, w in enumerate(VOCAB)}
+ID_TO_WORD: Dict[int, str] = {i: w for i, w in enumerate(VOCAB)}
+
+AGENT_NOUNS = ["cat", "dog", "boy", "girl"]
+OBJECT_NOUNS = ["cat", "dog", "boy", "girl", "ball", "mat"]
+TRANSITIVE_VERBS = ["sees", "likes"]
+DETERMINERS = ["the", "a"]
+
+
+@dataclass
+class DenseIOTopology:
+    Nin: int
+    K: int
+    input_nodes: np.ndarray
+    out_nodes: np.ndarray
+    negref: int
+    posref: int
+    edges_D: np.ndarray
+    edges_S: np.ndarray
+    meta: Dict[str, object]
+
+    @property
+    def num_edges(self) -> int:
+        return int(self.edges_D.size)
+
+
+# -------------------------
+# Logging (tee)
+# -------------------------
+def setup_logging(run_dir: Path):
+    log_path = run_dir / "train_log.txt"
+    log_f = open(log_path, "a", buffering=1)
+
+    class Tee:
+        def __init__(self, *streams):
+            self.streams = streams
+
+        def write(self, s):
+            for st in self.streams:
+                try:
+                    st.write(s)
+                except Exception:
+                    pass
+
+        def flush(self):
+            for st in self.streams:
+                try:
+                    st.flush()
+                except Exception:
+                    pass
+
+    sys.stdout = Tee(sys.stdout, log_f)  # type: ignore
+    sys.stderr = Tee(sys.stderr, log_f)  # type: ignore
+    return log_f
+
+
+# -------------------------
+# CLI
+# -------------------------
+def parse_args():
+    p = argparse.ArgumentParser(
+        description="CLLN dense 24->16 language trainer, hinge set loss, ngspice"
+    )
+    p.add_argument("seed", type=int, nargs="?", default=0)
+    p.add_argument("--epochs", type=int, default=20)
+
+    # Learning hyperparams
+    p.add_argument("--gamma", type=float, default=0.30)
+    p.add_argument("--delta", type=float, default=0.30, help="fixed clamp step for each violating output")
+    p.add_argument("--margin", type=float, default=0.10, help="hinge margin in output-voltage units")
+
+    # Bit voltage mapping
+    p.add_argument("--bit-v0", type=float, default=0.0, help="Voltage used for bit 0")
+    p.add_argument("--bit-v1", type=float, default=1.0, help="Voltage used for bit 1")
+
+    # Rails
+    p.add_argument("--vminus", type=float, default=0.0)
+    p.add_argument("--vplus", type=float, default=0.45)
+
+    # Dataset generation
+    p.add_argument("--num-sentences", type=int, default=1000, help="Synthetic sentences to generate")
+    p.add_argument("--val-frac", type=float, default=0.2)
+    p.add_argument("--max-train", type=int, default=0, help="If >0, limit train windows")
+    p.add_argument("--max-val", type=int, default=0, help="If >0, limit val windows")
+    p.add_argument(
+        "--template-mode",
+        type=str,
+        choices=["tiny", "balanced"],
+        default="balanced",
+        help="tiny = very repetitive local grammar; balanced = slightly broader but still controlled",
+    )
+
+    # Device / solver
+    p.add_argument("--device-lib", type=str, default=DEFAULT_DEVICE_LIB_PATH)
+    p.add_argument("--body-tie", type=str, choices=["source", "ground", "floating"], default="ground")
+    p.add_argument("--solver", type=str, choices=["klu", "sparse"], default="klu")
+
+    # Init VG
+    p.add_argument("--vg-init", type=str, choices=["random", "fixed"], default="random")
+    p.add_argument("--vg-init-lo", type=float, default=1.0)
+    p.add_argument("--vg-init-hi", type=float, default=3.0)
+    p.add_argument("--vg-init-fixed", type=float, default=VG_INIT_SINGLE)
+
+    p.add_argument("--sample-prompts", type=int, default=6, help="How many sample generations to save each epoch")
+    p.add_argument("--sample-max-len", type=int, default=10, help="Max generated words after the seed context")
+    p.add_argument("--final-val", action="store_true")
+    return p.parse_args()
+
+
+# -------------------------
+# Synthetic language data
+# -------------------------
+def sample_np(subject: bool = False) -> List[str]:
+    det = random.choice(DETERMINERS)
+    noun_pool = AGENT_NOUNS if subject else OBJECT_NOUNS
+    noun = random.choice(noun_pool)
+    return [det, noun]
+
+
+def sample_sentence(template_mode: str) -> List[str]:
+    """
+    Generates short grammar-controlled sentences with only 16 words.
+    Tokens do NOT include BOS/EOS here; those are added later when windows are built.
+
+    Example templates:
+      - the cat runs
+      - a dog is red
+      - the boy sees the ball
+      - the girl is on the mat
+    """
+    subj = sample_np(subject=True)
+    r = random.random()
+
+    if template_mode == "tiny":
+        if r < 0.34:
+            return subj + ["runs"]
+        if r < 0.60:
+            return subj + ["is", "red"]
+        if r < 0.80:
+            return subj + [random.choice(TRANSITIVE_VERBS)] + sample_np(subject=False)
+        return subj + ["is", "on"] + sample_np(subject=False)
+
+    # balanced mode: similar grammar, but more even coverage of verbs/templates
+    template = random.choice(["intransitive", "attribute", "transitive", "locative"])
+    if template == "intransitive":
+        return subj + ["runs"]
+    if template == "attribute":
+        return subj + ["is", "red"]
+    if template == "transitive":
+        return subj + [random.choice(TRANSITIVE_VERBS)] + sample_np(subject=False)
+    return subj + ["is", "on"] + sample_np(subject=False)
+
+
+def token_id_to_bits(tok_id: int) -> np.ndarray:
+    return np.array([(tok_id >> shift) & 1 for shift in range(TOKEN_BITS - 1, -1, -1)], dtype=float)
+
+
+def encode_context_tokens(ctx_ids: Sequence[int], bit_v0: float, bit_v1: float) -> np.ndarray:
+    if len(ctx_ids) != CONTEXT_LEN:
+        raise ValueError(f"Expected context length {CONTEXT_LEN}, got {len(ctx_ids)}")
+    bits: List[float] = []
+    for tid in ctx_ids:
+        code = token_id_to_bits(int(tid))
+        volts = np.where(code > 0.5, bit_v1, bit_v0)
+        bits.extend(volts.tolist())
+    return np.asarray(bits, dtype=float)
+
+
+def build_windows_from_sentence(tokens: Sequence[str], bit_v0: float, bit_v1: float) -> Tuple[List[np.ndarray], List[int], List[Tuple[int, ...]]]:
+    bos_id = WORD_TO_ID["<BOS>"]
+    eos_id = WORD_TO_ID["<EOS>"]
+    ids = [WORD_TO_ID[t] for t in tokens] + [eos_id]
+    padded = [bos_id] * CONTEXT_LEN + ids
+
+    xs: List[np.ndarray] = []
+    ys: List[int] = []
+    ctxs: List[Tuple[int, ...]] = []
+    for i in range(CONTEXT_LEN, len(padded)):
+        ctx = tuple(int(v) for v in padded[i - CONTEXT_LEN:i])
+        y = int(padded[i])
+        xs.append(encode_context_tokens(ctx, bit_v0=bit_v0, bit_v1=bit_v1))
+        ys.append(y)
+        ctxs.append(ctx)
+    return xs, ys, ctxs
+
+
+def build_language_dataset(num_sentences: int, template_mode: str, bit_v0: float, bit_v1: float) -> Tuple[List[np.ndarray], List[int], List[Tuple[int, ...]], List[List[str]]]:
+    all_x: List[np.ndarray] = []
+    all_y: List[int] = []
+    all_ctx: List[Tuple[int, ...]] = []
+    sentences: List[List[str]] = []
+    for _ in range(int(num_sentences)):
+        sent = sample_sentence(template_mode)
+        x_s, y_s, c_s = build_windows_from_sentence(sent, bit_v0=bit_v0, bit_v1=bit_v1)
+        all_x.extend(x_s)
+        all_y.extend(y_s)
+        all_ctx.extend(c_s)
+        sentences.append(sent)
+    return all_x, all_y, all_ctx, sentences
+
+
+def build_positive_map(contexts: Sequence[Tuple[int, ...]], ys: Sequence[int]) -> Dict[Tuple[int, ...], Set[int]]:
+    pos_map: Dict[Tuple[int, ...], Set[int]] = {}
+    for ctx, y in zip(contexts, ys):
+        pos_map.setdefault(tuple(ctx), set()).add(int(y))
+    return pos_map
+
+
+# -------------------------
+# Topology builder
+# -------------------------
+def make_dense_io_topology() -> DenseIOTopology:
+    input_nodes = np.arange(1, INPUT_DIM + 1, dtype=int)
+    out_nodes = np.arange(INPUT_DIM + 1, INPUT_DIM + OUTPUT_DIM + 1, dtype=int)
+    negref = int(INPUT_DIM + OUTPUT_DIM + 1)
+    posref = int(INPUT_DIM + OUTPUT_DIM + 2)
+
+    edges_D: List[int] = []
+    edges_S: List[int] = []
+    for out_n in out_nodes.tolist():
+        for in_n in input_nodes.tolist():
+            edges_D.append(int(out_n))
+            edges_S.append(int(in_n))
+
+    meta = {
+        "kind": "dense_input_output_bipartite",
+        "context_len": CONTEXT_LEN,
+        "token_bits": TOKEN_BITS,
+        "vocab_size": VOCAB_SIZE,
+        "num_edges": len(edges_D),
+    }
+    return DenseIOTopology(
+        Nin=INPUT_DIM,
+        K=OUTPUT_DIM,
+        input_nodes=input_nodes,
+        out_nodes=out_nodes,
+        negref=negref,
+        posref=posref,
+        edges_D=np.asarray(edges_D, dtype=int),
+        edges_S=np.asarray(edges_S, dtype=int),
+        meta=meta,
+    )
+
+
+# -------------------------
+# Ngspice helpers
+# -------------------------
+def exec_chunked(ng: NgSpiceShared, cmds: List[str], max_len: int = 900, sep: str = "; "):
+    buf: List[str] = []
+    length = 0
+    for c in cmds:
+        cl = len(c)
+        if buf and (length + len(sep) + cl) > max_len:
+            ng.exec_command(sep.join(buf))
+            buf = [c]
+            length = cl
+        else:
+            length = (length + len(sep) + cl) if buf else cl
+            buf.append(c)
+    if buf:
+        ng.exec_command(sep.join(buf))
+
+
+def get_voltages_multi(ng: NgSpiceShared, read_specs: Dict[str, List[int]]) -> Dict[str, np.ndarray]:
+    s = ng.exec_command("print allv")
+    nodemap: Dict[int, float] = {}
+    for line in s.splitlines():
+        line = line.strip()
+        if not line.startswith("v("):
+            continue
+        try:
+            k, v = line.split(" = ")
+            node_str = k[2:-1].strip()
+            if node_str.isdigit():
+                nodemap[int(node_str)] = float(v)
+        except Exception:
+            continue
+
+    out: Dict[str, np.ndarray] = {}
+    for key, nodes in read_specs.items():
+        out[key] = np.array([float(nodemap.get(int(n), np.nan)) for n in nodes], dtype=float)
+    return out
+
+
+def run_and_read(ng: NgSpiceShared, read_specs: Dict[str, List[int]]) -> Tuple[bool, float, Optional[Dict[str, np.ndarray]], Optional[str]]:
+    t0 = time.time()
+    try:
+        ng.run()
+        dt = time.time() - t0
+        data = get_voltages_multi(ng, read_specs)
+        try:
+            ng.exec_command("destroy all")
+        except Exception:
+            pass
+        return True, float(dt), data, None
+    except Exception as e:
+        return False, 0.0, None, str(e)
+
+
+def alter_inputs_named(ng: NgSpiceShared, values: np.ndarray):
+    cmds = [f"alter VIN{i} dc = {float(v):.16f}" for i, v in enumerate(values)]
+    exec_chunked(ng, cmds)
+
+
+def mk_free_all(ng: NgSpiceShared, K: int):
+    exec_chunked(ng, [f"alter RS{i} {RS_FREE:.6g}" for i in range(1, K + 1)])
+
+
+def hinge_violation_sets(scores: np.ndarray, positives: Set[int], margin: float) -> Tuple[Set[int], Set[int]]:
+    """
+    Pairwise hinge condition:
+        s_p >= s_n + margin  for every positive p and negative n
+
+    Violating positives:
+        p is violating if exists n with s_p < s_n + margin
+        <=> s_p < max_neg + margin
+
+    Violating negatives:
+        n is violating if exists p with s_p < s_n + margin
+        <=> s_n > min_pos - margin
+    """
+    K = int(scores.size)
+    pos = sorted(int(p) for p in positives)
+    neg = [k for k in range(K) if k not in positives]
+    if len(pos) == 0:
+        raise ValueError("Positive set cannot be empty")
+    if len(neg) == 0:
+        return set(), set()
+
+    pos_scores = np.asarray([scores[p] for p in pos], dtype=float)
+    neg_scores = np.asarray([scores[n] for n in neg], dtype=float)
+
+    max_neg = float(np.max(neg_scores))
+    min_pos = float(np.min(pos_scores))
+
+    violating_pos = {p for p in pos if float(scores[p]) < (max_neg + margin)}
+    violating_neg = {n for n in neg if float(scores[n]) > (min_pos - margin)}
+    return violating_pos, violating_neg
+
+
+def alter_outputs_hinge(
+    ng: NgSpiceShared,
+    K: int,
+    Vout_free: np.ndarray,
+    violating_pos: Set[int],
+    violating_neg: Set[int],
+    delta: float,
+):
+    """
+    Clamp only the violating outputs.
+      - violating positives: Vout_k^C = Vout_k^F + delta
+      - violating negatives: Vout_k^C = Vout_k^F - delta
+      - all others remain effectively unclamped
+    """
+    cmds: List[str] = []
+    for i in range(K):
+        idx1 = i + 1
+        if (i in violating_pos) or (i in violating_neg):
+            cmds.append(f"alter RS{idx1} {RS_CLAMP:.6g}")
+        else:
+            cmds.append(f"alter RS{idx1} {RS_FREE:.6g}")
+
+    for i in sorted(violating_pos):
+        cmds.append(f"alter VOUT{i} dc = {float(Vout_free[i] + delta):.16f}")
+    for i in sorted(violating_neg):
+        cmds.append(f"alter VOUT{i} dc = {float(Vout_free[i] - delta):.16f}")
+
+    exec_chunked(ng, cmds)
+
+
+def mk_netlist(
+    topo: DenseIOTopology,
+    vg_unique: np.ndarray,
+    vminus_val: float,
+    vplus_val: float,
+    solver: str,
+    body_res: float,
+    body_tie: str,
+    device_lib_path: str,
+) -> str:
+    if vg_unique.size != topo.num_edges:
+        raise ValueError("vg_unique size mismatch")
+
+    lines: List[str] = []
+    lines.append(".title clln_dense_language16_hinge")
+    lines.append(f'.include "{device_lib_path}"')
+
+    if solver.lower() == "klu":
+        lines.append(".options klu")
+
+    lines.append(f"VMINUS {topo.negref} 0 {float(vminus_val):.16f}")
+    lines.append(f"VPLUS  {topo.posref} 0 {float(vplus_val):.16f}")
+
+    for i, n in enumerate(topo.input_nodes):
+        lines.append(f"VIN{i} {n} 0 0")
+
+    node_pool = [topo.negref, topo.posref] + topo.input_nodes.tolist() + topo.out_nodes.tolist()
+    max_node = max(node_pool)
+    sink0 = max_node + 1
+    K = len(topo.out_nodes)
+
+    for i, on in enumerate(topo.out_nodes, start=1):
+        lines.append(f"RS{i} {on} {sink0 + (i - 1)} {RS_FREE:.6g}")
+    for j in range(K):
+        lines.append(f"VOUT{j} {sink0 + j} 0 0")
+
+    for eidx, (D, S) in enumerate(zip(topo.edges_D.tolist(), topo.edges_S.tolist())):
+        gate_node = f"g{eidx}"
+        lines.append(f"VG{eidx} {gate_node} 0 {float(vg_unique[eidx]):.16f}")
+
+        if body_tie == "source":
+            if body_res <= 0.0:
+                body_node = str(S)
+            else:
+                body_node = f"b{eidx}"
+                lines.append(f"RB{eidx} {body_node} {S} {float(body_res):.6g}")
+        elif body_tie == "ground":
+            if body_res <= 0.0:
+                body_node = "0"
+            else:
+                body_node = f"b{eidx}"
+                lines.append(f"RB{eidx} {body_node} 0 {float(body_res):.6g}")
+        elif body_tie == "floating":
+            body_node = f"b{eidx}"
+        else:
+            raise ValueError(f"Unsupported body_tie: {body_tie}")
+
+        lines.append(f"X{eidx} {D} {gate_node} {S} {body_node} {DEVICE_SUBCKT}")
+
+    lines.extend([
+        ".options TEMP = 27C",
+        ".options TNOM = 27C",
+        ".options itl1=40 itl2=40 itl4=6 itl5=60",
+        ".options gmin=1e-8 reltol=5e-3 abstol=1e-8 vntol=1e-5",
+        ".options rshunt=1e9",
+        ".op",
+        ".end",
+    ])
+    return "\n".join(lines) + "\n"
+
+
+# -------------------------
+# Metrics / generation helpers
+# -------------------------
+def hinge_metrics_from_outputs(scores: np.ndarray, positives: Set[int], margin: float) -> Tuple[float, int, int]:
+    """
+    Returns:
+      avg_pairwise_hinge_loss, num_violating_positives, num_violating_negatives
+    """
+    K = int(scores.size)
+    pos = sorted(int(p) for p in positives)
+    neg = [k for k in range(K) if k not in positives]
+    if len(pos) == 0:
+        return float("nan"), 0, 0
+    if len(neg) == 0:
+        return 0.0, 0, 0
+
+    losses: List[float] = []
+    for p in pos:
+        for n in neg:
+            losses.append(max(0.0, float(margin + scores[n] - scores[p])))
+
+    vpos, vneg = hinge_violation_sets(scores, positives, margin)
+    avg_loss = float(np.mean(losses)) if losses else 0.0
+    return avg_loss, len(vpos), len(vneg)
+
+
+def pred_label(V: np.ndarray) -> int:
+    return int(np.argmax(np.asarray(V, dtype=float)))
+
+
+def restore_gate_voltages(ng: NgSpiceShared, vg_unique: np.ndarray):
+    exec_chunked(ng, [f"alter VG{i} dc = {float(v):.16f}" for i, v in enumerate(vg_unique)])
+
+
+def compute_vg_saturation_stats(vg_unique: np.ndarray) -> Dict[str, float]:
+    return {
+        "vg_unique_min": float(np.min(vg_unique)),
+        "vg_unique_max": float(np.max(vg_unique)),
+        "vg_unique_sat_lo": float(np.sum(vg_unique <= (VG_CLIP_LO + 1e-12))),
+        "vg_unique_sat_hi": float(np.sum(vg_unique >= (VG_CLIP_HI - 1e-12))),
+    }
+
+
+def decode_context_bits_to_words(x: np.ndarray, bit_v0: float, bit_v1: float) -> List[str]:
+    x = np.asarray(x, dtype=float)
+    out: List[str] = []
+    thresh = 0.5 * (bit_v0 + bit_v1)
+    for i in range(CONTEXT_LEN):
+        seg = x[i * TOKEN_BITS:(i + 1) * TOKEN_BITS]
+        bits = [(1 if v > thresh else 0) for v in seg]
+        tid = 0
+        for b in bits:
+            tid = (tid << 1) | b
+        out.append(ID_TO_WORD.get(tid, f"<UNK:{tid}>"))
+    return out
+
+
+def greedy_generate_from_context(
+    ng: NgSpiceShared,
+    topo: DenseIOTopology,
+    vg_unique: np.ndarray,
+    netlist: str,
+    seed_ctx_ids: List[int],
+    bit_v0: float,
+    bit_v1: float,
+    max_len: int,
+) -> List[str]:
+    ctx = list(seed_ctx_ids)
+    out_words: List[str] = []
+    for _ in range(max_len):
+        mk_free_all(ng, topo.K)
+        xin = encode_context_tokens(ctx, bit_v0=bit_v0, bit_v1=bit_v1)
+        alter_inputs_named(ng, xin)
+        ok, _, data, _ = run_and_read(ng, {"out": topo.out_nodes.tolist()})
+        if not ok or data is None:
+            try:
+                ng.remove_circuit()
+            except Exception:
+                pass
+            ng.load_circuit(netlist)
+            restore_gate_voltages(ng, vg_unique)
+            mk_free_all(ng, topo.K)
+            break
+
+        Vout = np.asarray(data["out"], dtype=float)
+        if not np.all(np.isfinite(Vout)):
+            break
+        yhat = pred_label(Vout)
+        w = ID_TO_WORD[int(yhat)]
+        out_words.append(w)
+        ctx = ctx[1:] + [int(yhat)]
+        if w == "<EOS>":
+            break
+    return out_words
+
+
+def save_plots(run_dir: Path):
+    def _load(name: str):
+        p = run_dir / name
+        return np.load(p) if p.exists() else None
+
+    tr_acc = _load("0_train_acc.npy")
+    tr_hinge = _load("0_train_hinge.npy")
+    va_acc = _load("0_val_acc.npy")
+    va_hinge = _load("0_val_hinge.npy")
+    ep_total = _load("0_epoch_total_s.npy")
+    ep_free = _load("0_epoch_free_s.npy")
+    ep_clamp = _load("0_epoch_clamp_s.npy")
+    ep_upd = _load("0_epoch_update_s.npy")
+
+    if tr_acc is not None and va_acc is not None:
+        plt.figure()
+        plt.plot(np.arange(len(va_acc)), va_acc, label="val acc")
+        plt.plot(np.arange(1, len(tr_acc) + 1), tr_acc, label="train acc")
+        plt.xlabel("epoch")
+        plt.ylabel("accuracy")
+        plt.title("Top-1 next-token accuracy vs epoch")
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(run_dir / "learning_curves_acc.png", dpi=160)
+        plt.close()
+
+    if tr_hinge is not None and va_hinge is not None:
+        plt.figure()
+        plt.plot(np.arange(len(va_hinge)), va_hinge, label="val hinge")
+        plt.plot(np.arange(1, len(tr_hinge) + 1), tr_hinge, label="train hinge")
+        plt.xlabel("epoch")
+        plt.ylabel("avg pairwise hinge loss")
+        plt.title("Hinge loss vs epoch")
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(run_dir / "learning_curves_hinge.png", dpi=160)
+        plt.close()
+
+    if ep_total is not None and ep_free is not None and ep_clamp is not None and ep_upd is not None:
+        e = np.arange(1, len(ep_total) + 1)
+        plt.figure()
+        plt.plot(e, ep_total, label="epoch total")
+        plt.plot(e, ep_free, label="free")
+        plt.plot(e, ep_clamp, label="clamp")
+        plt.plot(e, ep_upd, label="update")
+        plt.xlabel("epoch")
+        plt.ylabel("seconds")
+        plt.title("Timing vs epoch")
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(run_dir / "timing.png", dpi=160)
+        plt.close()
+
+
+# -------------------------
+# Main
+# -------------------------
+def main():
+    args = parse_args()
+    seed = int(args.seed)
+    random.seed(seed)
+    np.random.seed(seed)
+
+    epochs = int(args.epochs)
+    gamma = float(args.gamma)
+    delta = float(args.delta)
+    margin = float(args.margin)
+    bit_v0 = float(args.bit_v0)
+    bit_v1 = float(args.bit_v1)
+    if bit_v1 <= bit_v0:
+        raise ValueError("--bit-v1 must be > --bit-v0")
+    if margin < 0.0:
+        raise ValueError("--margin must be >= 0")
+
+    vminus_val = float(args.vminus)
+    vplus_val = float(args.vplus)
+    solver = str(args.solver).lower()
+    body_res = float(RS_CLAMP)
+    body_tie = str(args.body_tie)
+    vg_init_mode = str(args.vg_init)
+    vg_init_lo = float(args.vg_init_lo)
+    vg_init_hi = float(args.vg_init_hi)
+    vg_init_single = float(args.vg_init_fixed)
+    device_lib = str(args.device_lib)
+    if not Path(device_lib).exists():
+        raise FileNotFoundError(f"Device library not found: {device_lib}")
+
+    template_mode = str(args.template_mode)
+    num_sentences = int(args.num_sentences)
+    if num_sentences < 1:
+        raise ValueError("--num-sentences must be >= 1")
+
+    all_x, all_y, all_ctx, sentences = build_language_dataset(
+        num_sentences=num_sentences,
+        template_mode=template_mode,
+        bit_v0=bit_v0,
+        bit_v1=bit_v1,
+    )
+
+    idx_all = np.arange(len(all_x))
+    train_idx, val_idx = train_test_split(
+        idx_all,
+        test_size=float(args.val_frac),
+        random_state=seed,
+        stratify=np.asarray(all_y, dtype=int),
+    )
+
+    if args.max_train and args.max_train > 0:
+        train_idx = train_idx[: args.max_train]
+    if args.max_val and args.max_val > 0:
+        val_idx = val_idx[: args.max_val]
+
+    train_x = [np.asarray(all_x[i], dtype=float) for i in train_idx]
+    train_y = [int(all_y[i]) for i in train_idx]
+    train_ctx = [tuple(all_ctx[i]) for i in train_idx]
+
+    val_x = [np.asarray(all_x[i], dtype=float) for i in val_idx]
+    val_y = [int(all_y[i]) for i in val_idx]
+    val_ctx = [tuple(all_ctx[i]) for i in val_idx]
+    val_n = len(val_x)
+
+    # IMPORTANT: build positive sets from TRAINING data only
+    pos_map = build_positive_map(train_ctx, train_y)
+
+    topo = make_dense_io_topology()
+    if topo.Nin != INPUT_DIM or topo.K != OUTPUT_DIM:
+        raise RuntimeError("Internal topology dimensions do not match language task")
+
+    if vg_init_mode == "fixed":
+        vg_unique = np.full((topo.num_edges,), vg_init_single, dtype=float)
+    else:
+        if vg_init_hi <= vg_init_lo:
+            raise ValueError("--vg-init-hi must be > --vg-init-lo for random init")
+        vg_unique = np.random.uniform(vg_init_lo, vg_init_hi, size=(topo.num_edges,)).astype(float)
+
+    results_dir = Path(__file__).resolve().parent / "results_language_16_hinge"
+    env_run_dir = os.environ.get("RUN_DIR")
+    if env_run_dir:
+        run_dir = Path(env_run_dir)
+        run_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        runs_dir = results_dir / "runs"
+        runs_dir.mkdir(parents=True, exist_ok=True)
+        run_id = datetime.now().strftime("%Y%m%d-%H%M%S") + f"_seed-{seed}"
+        run_dir = runs_dir / run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+
+    log_f = setup_logging(run_dir)
+
+    cfg_str = (
+        f"seed={seed} gamma={gamma} delta={delta} margin={margin} bit=[{bit_v0},{bit_v1}] "
+        f"context={CONTEXT_LEN} bits/token={TOKEN_BITS} Nin={topo.Nin} K={topo.K} "
+        f"sentences={num_sentences} template={template_mode} rails=[{vminus_val},{vplus_val}] "
+        f"solver={solver} body_tie={body_tie} rs_clamp={RS_CLAMP} "
+        f"vg_init={vg_init_mode} epochs={epochs} device_include={device_lib} subckt={DEVICE_SUBCKT}"
+    )
+
+    print("=== RUN START (clln_dense_language16_hinge) ===", flush=True)
+    print(cfg_str, flush=True)
+    print(f"train_windows={len(train_x)} val_windows={len(val_x)} edges={topo.num_edges}", flush=True)
+
+    (run_dir / "vocab.json").write_text(json.dumps({"vocab": VOCAB, "word_to_id": WORD_TO_ID}, indent=2))
+    (run_dir / "sample_sentences.txt").write_text("\n".join(" ".join(s) for s in sentences[:200]))
+    (run_dir / "positive_sets_train.json").write_text(json.dumps({
+        "examples": [
+            {
+                "context": [ID_TO_WORD[t] for t in ctx],
+                "positives": sorted(ID_TO_WORD[y] for y in ys),
+            }
+            for ctx, ys in list(pos_map.items())[:200]
+        ]
+    }, indent=2))
+
+    netlist = mk_netlist(
+        topo=topo,
+        vg_unique=vg_unique,
+        vminus_val=vminus_val,
+        vplus_val=vplus_val,
+        solver=solver,
+        body_res=body_res,
+        body_tie=body_tie,
+        device_lib_path=device_lib,
+    )
+    (run_dir / "netlist_initial.cir").write_text(netlist)
+
+    meta = {
+        "script": str(Path(__file__).resolve()),
+        "argv": list(os.sys.argv),
+        "seed": seed,
+        "timestamp": datetime.now().isoformat(),
+        "dataset": {
+            "name": "synthetic_language_16word",
+            "num_sentences": num_sentences,
+            "template_mode": template_mode,
+            "context_len": CONTEXT_LEN,
+            "token_bits": TOKEN_BITS,
+            "bit_v0": bit_v0,
+            "bit_v1": bit_v1,
+            "vocab": VOCAB,
+        },
+        "train_count": len(train_x),
+        "val_count": len(val_x),
+        "gamma": gamma,
+        "delta": delta,
+        "margin": margin,
+        "epochs": epochs,
+        "rails": {"vminus": vminus_val, "vplus": vplus_val},
+        "solver": solver,
+        "body_tie": body_tie,
+        "body_res": body_res,
+        "rs_clamp": RS_CLAMP,
+        "vg_init": {
+            "mode": vg_init_mode,
+            "lo": vg_init_lo,
+            "hi": vg_init_hi,
+            "fixed": vg_init_single,
+        },
+        "device": {
+            "include_path": device_lib,
+            "subckt": DEVICE_SUBCKT,
+        },
+        "topology": topo.meta,
+        "loss": "hinge_set_context_conditioned",
+        "generation": {
+            "sample_prompts": int(args.sample_prompts),
+            "sample_max_len": int(args.sample_max_len),
+        },
+    }
+    (run_dir / "run_meta.json").write_text(json.dumps(meta, indent=2))
+
+    np.save(run_dir / "val_x.npy", np.asarray(val_x, dtype=float))
+    np.save(run_dir / "val_y.npy", np.asarray(val_y, dtype=int))
+
+    ng = NgSpiceShared(send_data=False)
+    ng.load_circuit(netlist)
+
+    net_nodes = [topo.negref, topo.posref] + topo.out_nodes.tolist() + topo.input_nodes.tolist()
+    nodes_list = np.asarray(sorted(set(net_nodes)), dtype=int)
+    index_of = np.full(nodes_list.max() + 1, -1, dtype=int)
+    index_of[nodes_list] = np.arange(nodes_list.size, dtype=int)
+    eD = topo.edges_D
+    eS = topo.edges_S
+
+    try:
+        G = nx.DiGraph()
+        G.add_nodes_from(nodes_list.tolist())
+        for d, s in zip(eD.tolist(), eS.tolist()):
+            G.add_edge(d, s)
+        nx.write_graphml(G, str(run_dir / "0.graphml"))
+    except Exception:
+        pass
+
+    val_acc_hist: List[float] = []
+    val_hinge_hist: List[float] = []
+    tr_acc_hist: List[float] = []
+    tr_hinge_hist: List[float] = []
+    ep_total_s: List[float] = []
+    ep_free_s: List[float] = []
+    ep_clamp_s: List[float] = []
+    ep_update_s: List[float] = []
+    reload_free_hist: List[int] = []
+    reload_clamp_hist: List[int] = []
+    nonfinite_free_hist: List[int] = []
+    nonfinite_clamp_hist: List[int] = []
+
+    def eval_free_metrics(epoch: int) -> Tuple[float, float, Dict[str, float]]:
+        mk_free_all(ng, topo.K)
+        correct = 0
+        total = 0
+        loss_sum = 0.0
+        count = 0
+        reloads = 0
+        nonfinite = 0
+        vpos_sum = 0
+        vneg_sum = 0
+        confusion = np.zeros((topo.K, topo.K), dtype=int)
+        vout_val = np.full((val_n, topo.K), np.nan, dtype=float) if val_n > 0 else np.zeros((0, topo.K), dtype=float)
+
+        for i, (xv, yv, ctxv) in enumerate(zip(val_x, val_y, val_ctx)):
+            alter_inputs_named(ng, xv)
+            ok, _, data, _ = run_and_read(ng, {"out": topo.out_nodes.tolist()})
+            if not ok or data is None:
+                reloads += 1
+                try:
+                    ng.remove_circuit()
+                except Exception:
+                    pass
+                ng.load_circuit(netlist)
+                restore_gate_voltages(ng, vg_unique)
+                mk_free_all(ng, topo.K)
+                continue
+
+            Vout = np.asarray(data["out"], dtype=float)
+            if not np.all(np.isfinite(Vout)):
+                nonfinite += 1
+                continue
+
+            pred = pred_label(Vout)
+            ytrue = int(yv)
+            correct += int(pred == ytrue)
+            total += 1
+            confusion[ytrue, pred] += 1
+
+            positives = pos_map.get(tuple(ctxv), {ytrue})
+            hloss, nvpos, nvneg = hinge_metrics_from_outputs(Vout, positives, margin=margin)
+            loss_sum += float(hloss)
+            count += 1
+            vpos_sum += int(nvpos)
+            vneg_sum += int(nvneg)
+
+            vout_val[i, :] = Vout
+
+        if val_n > 0:
+            np.save(run_dir / f"0_vout_val_epoch{epoch}.npy", vout_val)
+            np.save(run_dir / f"0_val_confusion_epoch{epoch}.npy", confusion)
+
+        diag = {
+            "val_reloads": float(reloads),
+            "val_nonfinite": float(nonfinite),
+            "val_avg_num_viol_pos": (float(vpos_sum) / float(count)) if count else float("nan"),
+            "val_avg_num_viol_neg": (float(vneg_sum) / float(count)) if count else float("nan"),
+        }
+        acc = (correct / total) if total else float("nan")
+        loss = (loss_sum / count) if count else float("nan")
+        return float(acc), float(loss), diag
+
+    def save_generation_samples(epoch: int):
+        n = min(int(args.sample_prompts), len(val_x))
+        if n <= 0:
+            return
+        lines: List[str] = []
+        prompt_indices = np.linspace(0, len(val_x) - 1, n, dtype=int)
+        for j, idx in enumerate(prompt_indices.tolist()):
+            seed_words = decode_context_bits_to_words(val_x[idx], bit_v0=bit_v0, bit_v1=bit_v1)
+            seed_ids = [WORD_TO_ID[w] for w in seed_words]
+            generated = greedy_generate_from_context(
+                ng=ng,
+                topo=topo,
+                vg_unique=vg_unique,
+                netlist=netlist,
+                seed_ctx_ids=seed_ids,
+                bit_v0=bit_v0,
+                bit_v1=bit_v1,
+                max_len=int(args.sample_max_len),
+            )
+            target = ID_TO_WORD[int(val_y[idx])]
+            positives = [ID_TO_WORD[p] for p in sorted(pos_map.get(tuple(val_ctx[idx]), {val_y[idx]}))]
+            seed_clean = [w for w in seed_words if w != "<BOS>"]
+            gen_clean = [w for w in generated if w != "<BOS>"]
+            lines.append(f"[{j}] seed={' '.join(seed_clean) if seed_clean else '<BOS>'}")
+            lines.append(f"    target_next={target}")
+            lines.append(f"    valid_next_set={positives}")
+            lines.append(f"    generated={' '.join(gen_clean) if gen_clean else '<empty>'}")
+        (run_dir / f"samples_epoch{epoch}.txt").write_text("\n".join(lines) + "\n")
+
+    v0, h0, diag0 = eval_free_metrics(epoch=0)
+    val_acc_hist.append(v0)
+    val_hinge_hist.append(h0)
+    np.save(run_dir / "0_val_acc.npy", np.asarray(val_acc_hist, dtype=float))
+    np.save(run_dir / "0_val_hinge.npy", np.asarray(val_hinge_hist, dtype=float))
+    (run_dir / "0_diag_epoch0.json").write_text(json.dumps(diag0, indent=2))
+    save_generation_samples(epoch=0)
+    print(
+        f"[epoch 0] {cfg_str} | VAL acc={v0:.4f} hinge={h0:.6f} "
+        f"avgViolPos={diag0.get('val_avg_num_viol_pos', float('nan')):.3f} "
+        f"avgViolNeg={diag0.get('val_avg_num_viol_neg', float('nan')):.3f}",
+        flush=True,
+    )
+
+    for ep in range(1, epochs + 1):
+        t_ep0 = time.time()
+        order = np.arange(len(train_x))
+        np.random.shuffle(order)
+
+        train_correct = 0
+        train_total = 0
+        hinge_sum = 0.0
+        hinge_count = 0
+        viol_pos_sum = 0
+        viol_neg_sum = 0
+        updates_applied = 0
+
+        reload_free = 0
+        reload_clamp = 0
+        nonfinite_free = 0
+        nonfinite_clamp = 0
+        t_free = 0.0
+        t_clamp = 0.0
+        t_update = 0.0
+        n_free = 0
+        n_clamp = 0
+
+        for idx in order:
+            ytrue = int(train_y[idx])
+            ctx = tuple(train_ctx[idx])
+            positives = pos_map.get(ctx, {ytrue})
+
+            mk_free_all(ng, topo.K)
+            alter_inputs_named(ng, train_x[idx])
+
+            ok, dt, data, _ = run_and_read(ng, {"out": topo.out_nodes.tolist(), "nodes": nodes_list.tolist()})
+            t_free += float(dt)
+            n_free += 1
+
+            if not ok or data is None:
+                reload_free += 1
+                try:
+                    ng.remove_circuit()
+                except Exception:
+                    pass
+                ng.load_circuit(netlist)
+                restore_gate_voltages(ng, vg_unique)
+                mk_free_all(ng, topo.K)
+                continue
+
+            Vout = np.asarray(data["out"], dtype=float)
+            Vnodes_free = np.asarray(data["nodes"], dtype=float)
+            if (not np.all(np.isfinite(Vout))) or (not np.all(np.isfinite(Vnodes_free))):
+                nonfinite_free += 1
+                continue
+
+            pred = pred_label(Vout)
+            train_correct += int(pred == ytrue)
+            train_total += 1
+
+            hloss, nvpos, nvneg = hinge_metrics_from_outputs(Vout, positives, margin=margin)
+            hinge_sum += float(hloss)
+            hinge_count += 1
+            viol_pos_sum += int(nvpos)
+            viol_neg_sum += int(nvneg)
+
+            violating_pos, violating_neg = hinge_violation_sets(Vout, positives, margin=margin)
+
+            if (len(violating_pos) == 0) and (len(violating_neg) == 0):
+                continue
+
+            clamp0 = time.time()
+            alter_outputs_hinge(
+                ng,
+                K=topo.K,
+                Vout_free=Vout,
+                violating_pos=violating_pos,
+                violating_neg=violating_neg,
+                delta=delta,
+            )
+            t_clamp += float(time.time() - clamp0)
+
+            ok, dt2, data2, _ = run_and_read(ng, {"nodes": nodes_list.tolist()})
+            t_clamp += float(dt2)
+            n_clamp += 1
+
+            if not ok or data2 is None:
+                reload_clamp += 1
+                try:
+                    ng.remove_circuit()
+                except Exception:
+                    pass
+                ng.load_circuit(netlist)
+                restore_gate_voltages(ng, vg_unique)
+                mk_free_all(ng, topo.K)
+                continue
+
+            Vnodes_clamp = np.asarray(data2["nodes"], dtype=float)
+            if not np.all(np.isfinite(Vnodes_clamp)):
+                nonfinite_clamp += 1
+                continue
+
+            upd0 = time.time()
+
+            Vd_free = Vnodes_free[index_of[eD]]
+            Vs_free = Vnodes_free[index_of[eS]]
+            Vd_c = Vnodes_clamp[index_of[eD]]
+            Vs_c = Vnodes_clamp[index_of[eS]]
+
+            dV_free = Vd_free - Vs_free
+            dV_c = Vd_c - Vs_c
+
+            update = -gamma * (dV_c ** 2 - dV_free ** 2)
+
+            cmds: List[str] = []
+            for uid in range(topo.num_edges):
+                du = float(update[uid])
+                nv = float(vg_unique[uid] + du)
+                if nv < VG_CLIP_LO:
+                    nv = VG_CLIP_LO
+                elif nv > VG_CLIP_HI:
+                    nv = VG_CLIP_HI
+                vg_unique[uid] = nv
+                cmds.append(f"alter VG{uid} dc = {nv:.16f}")
+
+            if cmds:
+                exec_chunked(ng, cmds)
+            t_update += float(time.time() - upd0)
+            updates_applied += 1
+
+        tr_acc = (train_correct / train_total) if train_total else float("nan")
+        tr_hinge = (hinge_sum / hinge_count) if hinge_count else float("nan")
+        tr_acc_hist.append(float(tr_acc))
+        tr_hinge_hist.append(float(tr_hinge))
+
+        reload_free_hist.append(int(reload_free))
+        reload_clamp_hist.append(int(reload_clamp))
+        nonfinite_free_hist.append(int(nonfinite_free))
+        nonfinite_clamp_hist.append(int(nonfinite_clamp))
+
+        v_acc, v_hinge, diag = eval_free_metrics(epoch=ep)
+        val_acc_hist.append(float(v_acc))
+        val_hinge_hist.append(float(v_hinge))
+        save_generation_samples(epoch=ep)
+
+        ep_total = float(time.time() - t_ep0)
+        ep_total_s.append(ep_total)
+        ep_free_s.append(float(t_free))
+        ep_clamp_s.append(float(t_clamp))
+        ep_update_s.append(float(t_update))
+
+        np.save(run_dir / "0_train_acc.npy", np.asarray(tr_acc_hist, dtype=float))
+        np.save(run_dir / "0_train_hinge.npy", np.asarray(tr_hinge_hist, dtype=float))
+        np.save(run_dir / "0_val_acc.npy", np.asarray(val_acc_hist, dtype=float))
+        np.save(run_dir / "0_val_hinge.npy", np.asarray(val_hinge_hist, dtype=float))
+
+        np.save(run_dir / "0_epoch_total_s.npy", np.asarray(ep_total_s, dtype=float))
+        np.save(run_dir / "0_epoch_free_s.npy", np.asarray(ep_free_s, dtype=float))
+        np.save(run_dir / "0_epoch_clamp_s.npy", np.asarray(ep_clamp_s, dtype=float))
+        np.save(run_dir / "0_epoch_update_s.npy", np.asarray(ep_update_s, dtype=float))
+
+        np.save(run_dir / "0_reload_free.npy", np.asarray(reload_free_hist, dtype=int))
+        np.save(run_dir / "0_reload_clamp.npy", np.asarray(reload_clamp_hist, dtype=int))
+        np.save(run_dir / "0_nonfinite_free.npy", np.asarray(nonfinite_free_hist, dtype=int))
+        np.save(run_dir / "0_nonfinite_clamp.npy", np.asarray(nonfinite_clamp_hist, dtype=int))
+        np.save(run_dir / f"0_vg_unique_epoch{ep}.npy", vg_unique.copy())
+
+        vg_stats = compute_vg_saturation_stats(vg_unique)
+        summary = {
+            "epoch": int(ep),
+            "config": {
+                "seed": seed,
+                "gamma": gamma,
+                "delta": delta,
+                "margin": margin,
+                "bit_v0": bit_v0,
+                "bit_v1": bit_v1,
+                "rails": [vminus_val, vplus_val],
+                "solver": solver,
+                "body_tie": body_tie,
+                "body_res": body_res,
+                "rs_clamp": RS_CLAMP,
+                "vg_init": {
+                    "mode": vg_init_mode,
+                    "lo": vg_init_lo,
+                    "hi": vg_init_hi,
+                    "fixed": vg_init_single,
+                },
+                "epochs": epochs,
+                "device_include_path": device_lib,
+                "device_subckt": DEVICE_SUBCKT,
+                "loss": "hinge_set_context_conditioned",
+                "template_mode": template_mode,
+            },
+            "train": {
+                "acc": float(tr_acc),
+                "hinge": float(tr_hinge),
+                "n_free": int(n_free),
+                "n_clamp": int(n_clamp),
+                "updates_applied": int(updates_applied),
+                "reload_free": int(reload_free),
+                "reload_clamp": int(reload_clamp),
+                "nonfinite_free": int(nonfinite_free),
+                "nonfinite_clamp": int(nonfinite_clamp),
+                "avg_num_viol_pos": (float(viol_pos_sum) / float(hinge_count)) if hinge_count else float("nan"),
+                "avg_num_viol_neg": (float(viol_neg_sum) / float(hinge_count)) if hinge_count else float("nan"),
+            },
+            "val": {"acc": float(v_acc), "hinge": float(v_hinge), **{k: float(v) for k, v in diag.items()}},
+            "timing_s": {
+                "epoch_total": float(ep_total),
+                "train_free": float(t_free),
+                "train_clamp": float(t_clamp),
+                "train_update": float(t_update),
+            },
+            "vg_stats": vg_stats,
+        }
+        (run_dir / f"0_epoch_summary_epoch{ep}.json").write_text(json.dumps(summary, indent=2))
+        (run_dir / f"0_diag_epoch{ep}.json").write_text(json.dumps(diag, indent=2))
+
+        print(
+            f"[epoch {ep}/{epochs}] {cfg_str} | TRAIN acc={tr_acc:.4f} hinge={tr_hinge:.6f} "
+            f"free={n_free} clamp={n_clamp} updApplied={updates_applied} "
+            f"avgViolPos={(float(viol_pos_sum) / float(hinge_count)) if hinge_count else float('nan'):.3f} "
+            f"avgViolNeg={(float(viol_neg_sum) / float(hinge_count)) if hinge_count else float('nan'):.3f} "
+            f"reloadF={reload_free} reloadC={reload_clamp} nonfiniteF={nonfinite_free} nonfiniteC={nonfinite_clamp}",
+            flush=True,
+        )
+        print(
+            f"[epoch {ep}/{epochs}] {cfg_str} | VAL acc={v_acc:.4f} hinge={v_hinge:.6f} "
+            f"avgViolPos={diag.get('val_avg_num_viol_pos', float('nan')):.3f} "
+            f"avgViolNeg={diag.get('val_avg_num_viol_neg', float('nan')):.3f} | "
+            f"timing total={ep_total:.2f}s free={t_free:.2f}s clamp={t_clamp:.2f}s upd={t_update:.2f}s",
+            flush=True,
+        )
+
+        try:
+            save_plots(run_dir)
+        except Exception:
+            pass
+
+    latest = results_dir / "latest"
+    try:
+        if latest.is_symlink() or latest.exists():
+            latest.unlink()
+    except Exception:
+        pass
+    try:
+        latest.symlink_to(run_dir.resolve())
+    except Exception:
+        pass
+
+    if args.final_val:
+        print("FINAL val acc=", val_acc_hist[-1] if val_acc_hist else float("nan"), flush=True)
+
+    print("=== RUN END (clln_dense_language16_hinge) ===", flush=True)
+    try:
+        log_f.flush()
+        log_f.close()
+    except Exception:
+        pass
+
+
+if __name__ == "__main__":
+    main()

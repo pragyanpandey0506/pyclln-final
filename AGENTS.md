@@ -3,18 +3,37 @@
 Project-specific guidance for assistants working in this repo.
 
 ## Structure
-- Training scripts live in `scikit_digit/` (`dense_trainer.py`, `auto_prune_trainer.py`, `dense_trainer_avgappr.py`, `dense_trainer_cross_entropy.py`).
-- Sweep launchers are `scikit_digit/auto_prune_sweep.py` and `scikit_digit/xent_sweep.py`.
-- Topology artifacts live in `scikit_digit/topology/` and are read via `topology_io.py`.
-- Topology visualization lives in `scikit_digit/topology/topology_heatmap.ipynb`.
+
+- Digit training scripts live in `scikit_digit/`.
+- Digit sweep launchers are `scikit_digit/auto_prune_sweep.py` and `scikit_digit/xent_sweep.py`.
+- Digit topology artifacts live in `scikit_digit/topology/`.
+- 16-token language-model scripts live in `lang_model/`.
+- 32-token language-model CE trainer lives at repo root: `clln_lang_ce_32_6.py`.
 - Device model card is `device_model/nmos_lvl1_ald1106.lib`.
-- Run outputs are written under `scikit_digit/results/runs/` with `scikit_digit/results/latest` pointing to the most recent run.
-- Sweep outputs are written under `scikit_digit/results/auto_prune_sweep_11jan2026/`.
-- Cross-entropy sweep outputs are written under `scikit_digit/results/xent_sweep_11jan2026/`.
+
+## Output Trees
+
+- Digit run outputs live under `scikit_digit/results/`.
+- 16-token language outputs live under:
+  - `lang_model/results_language_16_softce/`
+  - `lang_model/results_language_16_hinge/`
+  - `lang_model/results_language_16_linear_softce/`
+- 32-token language outputs live under `results_language_32_softce/`.
+
+These output trees can be large. Treat them as run artifacts, not source files.
 
 ## Practices
-- Keep trainer logging and `run_meta.json` fields consistent when you add new options.
-- If you change topology format or paths, update both the trainer config string and metadata.
+
+- Keep trainer logging and `run_meta.json` fields consistent when adding options.
+- If you change topology format or result paths, update both the config string and metadata.
 - Avoid modifying the device model card unless explicitly requested.
-- Run artifacts can be large; do not add or edit them unless the user asks.
+- Do not edit run artifacts unless the user asks.
 - `auto_prune_trainer.py` saves `topology_final_pruned.npz` into each run folder.
+- The language-model scripts use result directories relative to the script path unless `RUN_DIR` is set.
+
+## Documentation
+
+- Root overview: `README.md`
+- 16-token language-model details: `lang_model/README.md`
+
+When repo structure changes, update both of those files.

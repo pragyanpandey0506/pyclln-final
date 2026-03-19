@@ -1,123 +1,131 @@
 # pyclln-final
 
-Analog NMOS network training on sklearn digits using ngspice via PySpice.
+Analog NMOS network training with ngspice via PySpice.
 
-## Repo layout
-- `device_model/` contains the NMOS model card and wrapper subckt.
-- `scikit_digit/` contains training scripts, topology files, and run outputs.
-- `scikit_digit/topology/` holds topology artifacts in `.npz` format.
-- `scikit_digit/results/` is where runs are written (`runs/` + `latest`).
-- `scikit_digit/results/auto_prune_sweep_11jan2026/` contains sweep runs.
-- `scikit_digit/results/final_figures_22_jan/` contains the curated final-figures runs and plots (tracked in git).
+The repo now has two main work areas:
 
-## Requirements
-- Python 3.x
-- Python packages: `numpy`, `scikit-learn`, `networkx`, `matplotlib`, `PySpice`
-- Ngspice shared library (`libngspice.so`) available on your system
+- `scikit_digit/` for the original sklearn-digit experiments
+- `lang_model/` plus `clln_lang_ce_32_6.py` for the synthetic language-model experiments
 
-## Quick start
-Run dense training:
+## Layout
+
+- `device_model/`
+  - NMOS model card and wrapper subcircuit (`nmos_lvl1_ald1106.lib`)
+- `scikit_digit/`
+  - digit trainers, sweep launchers, topology files, and curated result folders
+- `lang_model/`
+  - 16-token language trainers, inference helper, linear baseline, and docs
+- `clln_lang_ce_32_6.py`
+  - 32-token / 6-token-context soft cross-entropy language trainer
+- `results_language_32_softce/`
+  - root-level output tree for `clln_lang_ce_32_6.py`
+
+## Environment
+
+Expected environment is `p311env` with:
+
+- Python 3.11
+- `numpy`, `scikit-learn`, `networkx`, `matplotlib`
+- `PySpice`
+- system `ngspice` shared library (`libngspice.so`)
+
+Examples:
+
+```bash
+conda run -n p311env python scikit_digit/dense_trainer.py --help
+conda run -n p311env python lang_model/clln_lang_trainer_ce.py --help
+conda run -n p311env python clln_lang_ce_32_6.py --help
 ```
-python3 scikit_digit/dense_trainer.py 0 --epochs 20
+
+## Quick Start
+
+Digit trainer:
+
+```bash
+conda run -n p311env python scikit_digit/dense_trainer.py 0 --epochs 20
 ```
 
-Run auto-prune training:
-```
-python3 scikit_digit/auto_prune_trainer.py 0 --epochs 20
-```
+16-token language CE trainer:
 
-Run the sweep launcher:
-```
-python3 scikit_digit/auto_prune_sweep.py
+```bash
+conda run -n p311env python lang_model/clln_lang_trainer_ce.py 0 --epochs 20
 ```
 
-Run the cross-entropy sweep launcher:
+16-token language hinge trainer:
+
+```bash
+conda run -n p311env python lang_model/clln_language_dense_trainer_16.py 0 --epochs 20
 ```
-python3 scikit_digit/xent_sweep.py
+
+32-token language CE trainer:
+
+```bash
+conda run -n p311env python clln_lang_ce_32_6.py 0 --epochs 35
 ```
 
-## Sweeps and recorded results
-This repo keeps full sweep configurations in code, but only tracks the curated final-figures runs in git.
-All other sweep outputs remain on disk under `scikit_digit/results/` and are excluded to keep the repo size sane.
+## Language-Model Work
 
-### Hinge sweeps (dense + auto-prune)
-Sweep launchers:
-- `scikit_digit/dense_sweep.py` (hinge dense trainer)
-- `scikit_digit/auto_prune_sweep.py` (hinge auto-prune trainer)
+### `lang_model/`
 
-Sweep grid (both launchers use the same grid):
-- epochs: 100
-- gamma: 0.03, 0.3, 3.0
-- delta: 0.02, 0.05, 0.1
-- margin: 0.02, 0.05, 0.1
-- body-tie: ground, source, floating
-- vg-init:
-  - fixed: 0.75, 2.0, 4.0
-  - random: [0.75, 3.0], [1.0, 6.0], [1.5, 2.5]
-- solver: klu
-- seed: 0, 1, 2
-- total runs per sweep: 3 (gamma) * 3 (delta) * 3 (margin) * 3 (body-tie) * 6 (vg-init) * 3 (seed) = 1458
-- parallelism: dense sweep 10-way, auto-prune sweep 20-way
+`lang_model/` contains the moved 16-token language experiments:
 
-Outputs (per run directory):
-- `run_meta.json`, `run_spec.json`, `train_log.txt`
-- per-epoch summaries: `0_epoch_summary_epoch*.json`, `0_diag_epoch*.json`
-- histories: `0_train_*.npy`, `0_val_*.npy`, timing arrays, reload/nonfinite arrays
-- full test-set outputs: `0_vout_test_epoch*.npy`
-- per-epoch confusion matrices (val): `0_val_confusion_epoch*.npy`
-- plots: `learning_curves_*.png`, `timing.png`, `hinge_active.png` (auto-prune/dense)
+- `clln_lang_trainer_ce.py`
+  - dense 24 -> 16 soft-target cross-entropy analog trainer
+- `clln_language_dense_trainer_16.py`
+  - dense 24 -> 16 hinge-set analog trainer
+- `language16_infer_softce.py`
+  - autoregressive inference helper for the best 16-token CE checkpoint
+- `linear_mlp_lang_ce.py`
+  - linear 24 -> 16 softmax baseline for comparison against the analog CE trainer
 
-### Cross-entropy sweep
-Sweep launcher: `scikit_digit/xent_sweep.py`
+Run outputs for these scripts are written under:
 
-Sweep grid:
-- epochs: 20
-- gamma: 0.03, 0.3, 3.0
-- delta: 0.25, 0.5, 0.75
-- softmax temperature: 0.0005, 0.001, 0.005, 0.01, 0.05
-- body-tie: ground, source, floating
-- vg-init:
-  - fixed: 0.75, 2.0, 4.0
-  - random: [0.75, 3.0], [1.0, 6.0], [1.5, 2.5]
-- solver: klu
-- seed: 0
-- total runs: 3 (gamma) * 3 (delta) * 5 (temp) * 3 (body-tie) * 6 (vg-init) = 810
-- parallelism: 10-way
+- `lang_model/results_language_16_softce/`
+- `lang_model/results_language_16_hinge/`
+- `lang_model/results_language_16_linear_softce/`
 
-Outputs (per run directory) match the hinge sweeps with CE-specific metrics (`0_train_ce.npy`, `0_val_ce.npy`).
+Detailed documentation for the 16-token setup lives in:
 
-### Final figures (22 Jan)
-Tracked in git under `scikit_digit/results/final_figures_22_jan/`:
-- `dense_best/` (hinge)
-  - seed=1, epochs=10, gamma=0.3, delta=0.1, margin=0.02
-  - body-tie=floating, vg-init=fixed (4.0), solver=klu
-  - topology: `scikit_digit/topology/random_topology_0799.npz` (571 edges after pruning at epoch 64)
-- `xent_best/` (cross entropy)
-  - seed=0, epochs=10, gamma=0.3, delta=0.25, softmax-temp=0.001
-  - body-tie=floating, vg-init=fixed (4.0), solver=klu
-  - topology: `scikit_digit/topology/random_topology_0799.npz` (same pruned topology as above)
+- `lang_model/README.md`
 
-Final-figures folder contents:
-- full run metadata + logs (`run_meta.json`, `train_log.txt`)
-- per-epoch summaries + diagnostics
-- per-epoch val confusion matrices (`0_val_confusion_epoch*.npy`)
-- per-epoch test-set outputs (`0_vout_test_epoch*.npy`)
-- per-epoch VG snapshots (`0_vg_unique_epoch*.npy`)
-- plots (confusion matrices, VG heatmaps/histograms/graphs, accuracy/loss/hinge curves)
+### `clln_lang_ce_32_6.py`
 
-## Scripts
-- `scikit_digit/dense_trainer.py`: hinge-loss trainer; loads topology from `.npz`.
-- `scikit_digit/auto_prune_trainer.py`: hinge-loss trainer with edge pruning.
-- `scikit_digit/auto_prune_sweep.py`: sweep launcher (writes under `scikit_digit/results/auto_prune_sweep_11jan2026`).
-- `scikit_digit/dense_trainer_avgappr.py`: MSE-based trainer with prototype/averaging behavior.
-- `scikit_digit/dense_trainer_cross_entropy.py`: cross-entropy trainer with softmax temperature.
-- `scikit_digit/xent_sweep.py`: cross-entropy sweep launcher (writes under `scikit_digit/results/xent_sweep_11jan2026`).
-- `scikit_digit/topology/topology_heatmap.ipynb`: visualizes per-output input connectivity heatmaps.
+This is the larger language-model experiment at repo root:
+
+- context length: 6 tokens
+- vocabulary size: 32 tokens
+- soft-target cross-entropy clamp rule
+- outputs written under `results_language_32_softce/`
+
+That folder is run-artifact storage only:
+
+- `results_language_32_softce/runs/`
+- `results_language_32_softce/sweeps/`
+
+The tracked repo does not keep those run artifacts by default.
+
+## Digit Work
+
+Main digit scripts:
+
+- `scikit_digit/dense_trainer.py`
+- `scikit_digit/auto_prune_trainer.py`
+- `scikit_digit/dense_trainer_avgappr.py`
+- `scikit_digit/dense_trainer_cross_entropy.py`
+- `scikit_digit/auto_prune_sweep.py`
+- `scikit_digit/xent_sweep.py`
+
+Topology artifacts:
+
+- `scikit_digit/topology/`
+- `scikit_digit/topology/topology_heatmap.ipynb`
+
+Tracked curated results:
+
+- `scikit_digit/results/final_figures_22_jan/`
 
 ## Notes
-- The trainers load topology from `.npz` under `scikit_digit/topology/`.
-- `dense_trainer.py` and `auto_prune_trainer.py` support `--vg-init random|fixed` with `--vg-init-lo/--vg-init-hi` and `--vg-init-fixed`.
-- `--body-tie` switches device body between source, ground, and floating; body resistor is fixed to `RS_CLAMP`.
-- `auto_prune_trainer.py` computes `vg_cutoff = 0.8 * vto` from `device_model/nmos_lvl1_ald1106.lib` and prunes edges that stay below cutoff for the configured number of epochs (`--vg-cutoff-epochs`).
-- `auto_prune_trainer.py` writes `topology_final_pruned.npz` into each run folder.
-- Run artifacts are written under `scikit_digit/results/runs/` and `scikit_digit/results/latest` is updated to the most recent run.
+
+- The analog trainers typically write results relative to the script directory unless `RUN_DIR` is provided.
+- Large run-output trees are intentionally ignored in git.
+- The most current documentation for language-model experiment organization is in `lang_model/README.md`.
