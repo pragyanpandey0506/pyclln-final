@@ -32,7 +32,7 @@ Learning rule:
      then clip to [VG_CLIP_LO, VG_CLIP_HI].
 
 Recommended first use:
-  python lang_model/clln_language_dense_trainer_16.py 0 --epochs 20 --num-sentences 1000
+  python lang_model/vocab16/clln_language_dense_trainer_16.py 0 --epochs 20 --num-sentences 1000
 """
 
 from __future__ import annotations

@@ -7,18 +7,19 @@ Project-specific guidance for assistants working in this repo.
 - Digit training scripts live in `scikit_digit/`.
 - Digit sweep launchers are `scikit_digit/auto_prune_sweep.py` and `scikit_digit/xent_sweep.py`.
 - Digit topology artifacts live in `scikit_digit/topology/`.
-- 16-token language-model scripts live in `lang_model/`.
-- 32-token language-model CE trainer lives at repo root: `clln_lang_ce_32_6.py`.
+- 16-token language-model scripts live in `lang_model/vocab16/`.
+- 32-token language-model CE trainer lives in `lang_model/vocab32/clln_lang_ce_32_6.py`.
 - Device model card is `device_model/nmos_lvl1_ald1106.lib`.
 
 ## Output Trees
 
 - Digit run outputs live under `scikit_digit/results/`.
 - 16-token language outputs live under:
-  - `lang_model/results_language_16_softce/`
-  - `lang_model/results_language_16_hinge/`
-  - `lang_model/results_language_16_linear_softce/`
-- 32-token language outputs live under `results_language_32_softce/`.
+  - `lang_model/vocab16/results_language_16_softce/`
+  - `lang_model/vocab16/results_language_16_hinge/`
+  - `lang_model/vocab16/results_language_16_linear_softce/`
+  - `lang_model/vocab16/results_language_16_onehotce/`
+- 32-token language outputs live under `lang_model/vocab32/results_language_32_softce/`.
 
 These output trees can be large. Treat them as run artifacts, not source files.
 
@@ -34,6 +35,8 @@ These output trees can be large. Treat them as run artifacts, not source files.
 ## Documentation
 
 - Root overview: `README.md`
-- 16-token language-model details: `lang_model/README.md`
+- Language-model top-level overview: `lang_model/README.md`
+- 16-token language-model details: `lang_model/vocab16/README.md`
+- 32-token language-model details: `lang_model/vocab32/README.md`
 
 When repo structure changes, update both of those files.

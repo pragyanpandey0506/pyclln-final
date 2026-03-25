@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """
-CLLN language generation trainer — dense 24-bit input -> 16-word output NMOS network
-Soft-target cross-entropy training (SGD, no batching) with two-phase (free / clamp)
+CLLN language generation trainer — dense 24-d input (6 context tokens × 4D embedding)
+-> 32-token output NMOS network.
+
+One-hot cross-entropy training (SGD, no batching) with two-phase (free / clamp)
 ngspice runs.
 
 Task:
-  - Synthetic next-token prediction on a 16-word vocabulary.
+  - Synthetic next-token prediction on a 32-token output vocabulary.
+  - Input vocabulary has 33 symbols because <BOS> is input-only.
   - Context window: 6 tokens.
-  - Token encoding: fixed 4-bit binary code per token.
+  - Token encoding: fixed 4D analog embedding per token.
   - Input dimension: 6 * 4 = 24 input nodes.
-  - Output dimension: 16 output nodes, one per vocabulary word.
+  - Output dimension: 32 output nodes, one per output token.
 
-Soft CE target:
-  - For each exact 6-token context x, build q(.|x) from the TRAINING split only:
-        q_k = count(context=x, next_word=k) / total_count(context=x)
+One-hot CE target:
+  - For each training window (x, y), use only that sample's next-token label:
+        q = one_hot(y)
   - Clamp rule:
         p = softmax(Vout_free / T)
         Vout_clamp = Vout_free + delta * (q - p)
@@ -21,18 +24,10 @@ Soft CE target:
 Topology:
   - No hidden nodes.
   - Every input node is connected to every output node by exactly one NMOS edge.
-  - Total trainable edges = 24 * 16 = 384.
-
-Learning rule:
-  1) Free phase: outputs effectively unclamped (RS all = RS_FREE), run .op
-  2) Compute p = softmax(Vout / T)
-  3) Clamp phase using soft empirical target q(.|x)
-  4) Update each gate voltage by
-         dVG_e = -gamma * ( (dV_e^C)^2 - (dV_e^F)^2 )
-     then clip to [VG_CLIP_LO, VG_CLIP_HI].
+  - Total trainable edges = 24 * 32 = 768.
 
 Recommended first use:
-  python lang_model/clln_lang_trainer_ce.py 0 --epochs 20 --num-sentences 1000
+  python lang_model/vocab32/clln_lang_trainer_embed4_onehot_ce.py 0 --epochs 20 --num-sentences 12000
 """
 
 from __future__ import annotations
@@ -43,6 +38,7 @@ import os
 import random
 import sys
 import time
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -78,29 +74,75 @@ RS_FREE = 1e9
 RS_CLAMP = 10.0
 
 CONTEXT_LEN = 6
-TOKEN_BITS = 4
-VOCAB_SIZE = 16
-INPUT_DIM = CONTEXT_LEN * TOKEN_BITS  # 24
-OUTPUT_DIM = VOCAB_SIZE               # 16
+TOKEN_EMBED_DIM = 4
+INPUT_DIM = CONTEXT_LEN * TOKEN_EMBED_DIM  # 24
 
 
 # -------------------------
-# Vocabulary / synthetic grammar
+# Vocabulary / embeddings
 # -------------------------
-VOCAB: List[str] = [
-    "<BOS>", "<EOS>",
-    "the", "a",
-    "cat", "dog", "boy", "girl", "ball", "mat",
-    "runs", "sees", "likes", "is", "red", "on",
+INPUT_VOCAB: List[str] = [
+    "<BOS>", ".", "!", "?", ",",
+    "I", "you", "we", "they",
+    "robot", "signal", "city", "river", "fire", "dream",
+    "see", "hear", "build", "break", "follow", "remember",
+    "am", "are", "is", "not", "why", "where",
+    "bright", "lost", "alive", "strange", "here", "again",
 ]
-assert len(VOCAB) == VOCAB_SIZE
-WORD_TO_ID: Dict[str, int] = {w: i for i, w in enumerate(VOCAB)}
-ID_TO_WORD: Dict[int, str] = {i: w for i, w in enumerate(VOCAB)}
+OUTPUT_VOCAB: List[str] = [tok for tok in INPUT_VOCAB if tok != "<BOS>"]
+OUTPUT_DIM = len(OUTPUT_VOCAB)  # 32
 
-AGENT_NOUNS = ["cat", "dog", "boy", "girl"]
-OBJECT_NOUNS = ["cat", "dog", "boy", "girl", "ball", "mat"]
-TRANSITIVE_VERBS = ["sees", "likes"]
-DETERMINERS = ["the", "a"]
+assert len(INPUT_VOCAB) == 33
+assert len(OUTPUT_VOCAB) == 32
+
+INPUT_WORD_TO_ID: Dict[str, int] = {w: i for i, w in enumerate(INPUT_VOCAB)}
+INPUT_ID_TO_WORD: Dict[int, str] = {i: w for i, w in enumerate(INPUT_VOCAB)}
+OUTPUT_WORD_TO_ID: Dict[str, int] = {w: i for i, w in enumerate(OUTPUT_VOCAB)}
+OUTPUT_ID_TO_WORD: Dict[int, str] = {i: w for i, w in enumerate(OUTPUT_VOCAB)}
+
+TOKEN_EMBED_4D: Dict[str, List[float]] = {
+    "<BOS>":    [0.0548, 0.2737, 0.2228, 0.0737],
+    ".":        [0.0551, 0.3377, 0.2024, 0.1676],
+    "!":        [0.0506, 0.3574, 0.2041, 0.2185],
+    "?":        [0.0500, 0.3599, 0.2043, 0.2249],
+    ",":        [0.0661, 0.3354, 0.1972, 0.1738],
+    "I":        [0.1370, 0.0836, 0.1491, 0.1275],
+    "you":      [0.1407, 0.1103, 0.1422, 0.1410],
+    "we":       [0.1451, 0.1180, 0.1303, 0.1448],
+    "they":     [0.1493, 0.1505, 0.1247, 0.1671],
+    "robot":    [0.3759, 0.2272, 0.0814, 0.1824],
+    "signal":   [0.3832, 0.2459, 0.0977, 0.2447],
+    "city":     [0.3882, 0.3455, 0.0500, 0.3662],
+    "river":    [0.3943, 0.3691, 0.0565, 0.3258],
+    "fire":     [0.3994, 0.3518, 0.1009, 0.2331],
+    "dream":    [0.3396, 0.0500, 0.1658, 0.2851],
+    "see":      [0.3871, 0.3228, 0.3351, 0.0500],
+    "hear":     [0.3786, 0.2705, 0.3512, 0.0965],
+    "build":    [0.4000, 0.3817, 0.2963, 0.0505],
+    "break":    [0.3965, 0.3984, 0.3257, 0.1082],
+    "follow":   [0.3880, 0.3388, 0.3112, 0.1092],
+    "remember": [0.3514, 0.1267, 0.4000, 0.1441],
+    "am":       [0.1022, 0.2471, 0.3548, 0.3079],
+    "are":      [0.1060, 0.2708, 0.3520, 0.3077],
+    "is":       [0.1095, 0.3001, 0.3413, 0.3485],
+    "not":      [0.1052, 0.2410, 0.3286, 0.2805],
+    "why":      [0.0862, 0.3254, 0.2482, 0.2693],
+    "where":    [0.1004, 0.4000, 0.2114, 0.3066],
+    "bright":   [0.3556, 0.2715, 0.3055, 0.3872],
+    "lost":     [0.3367, 0.1825, 0.3325, 0.3818],
+    "alive":    [0.3505, 0.1889, 0.3196, 0.3099],
+    "strange":  [0.3401, 0.1833, 0.3414, 0.4000],
+    "here":     [0.1728, 0.3828, 0.2071, 0.2963],
+    "again":    [0.1395, 0.1937, 0.3100, 0.1916],
+}
+
+PRONOUNS = ["I", "you", "we", "they"]
+NOUNS = ["robot", "signal", "city", "river", "fire", "dream"]
+VERBS = ["see", "hear", "build", "break", "follow", "remember"]
+DESCRIPTORS = ["bright", "lost", "alive", "strange"]
+STATEMENT_END = [".", "!"]
+QUESTION_END = ["?"]
+TERMINAL_PUNCT = {".", "!", "?"}
 
 
 @dataclass
@@ -145,7 +187,6 @@ def setup_logging(run_dir: Path):
                 except Exception:
                     pass
 
-    # Avoid duplicated terminal lines by not mixing __stdout__ with current stdout.
     sys.stdout = Tee(sys.stdout, log_f)  # type: ignore
     sys.stderr = Tee(sys.stderr, log_f)  # type: ignore
     return log_f
@@ -156,7 +197,7 @@ def setup_logging(run_dir: Path):
 # -------------------------
 def parse_args():
     p = argparse.ArgumentParser(
-        description="CLLN dense 24->16 language trainer, soft cross entropy, ngspice"
+        description="CLLN dense 24->32 language trainer, fixed 4D token embeddings, one-hot cross entropy, ngspice"
     )
     p.add_argument("seed", type=int, nargs="?", default=0)
     p.add_argument("--epochs", type=int, default=20)
@@ -166,25 +207,23 @@ def parse_args():
     p.add_argument("--delta", type=float, default=0.30)
     p.add_argument("--softmax-temp", type=float, default=1.0)
 
-    # Bit voltage mapping
-    p.add_argument("--bit-v0", type=float, default=0.0, help="Voltage used for bit 0")
-    p.add_argument("--bit-v1", type=float, default=1.0, help="Voltage used for bit 1")
-
     # Rails
     p.add_argument("--vminus", type=float, default=0.0)
     p.add_argument("--vplus", type=float, default=0.45)
 
     # Dataset generation
-    p.add_argument("--num-sentences", type=int, default=1000, help="Synthetic sentences to generate")
+    p.add_argument("--num-sentences", type=int, default=12000, help="Minimum synthetic sentences to generate")
+    p.add_argument("--min-target-count", type=int, default=80, help="Continue generating until every output token appears at least this many times as a training target")
+    p.add_argument("--max-sentence-words", type=int, default=9, help="Discard generated sentences longer than this many words")
     p.add_argument("--val-frac", type=float, default=0.2)
     p.add_argument("--max-train", type=int, default=0, help="If >0, limit train windows")
     p.add_argument("--max-val", type=int, default=0, help="If >0, limit val windows")
     p.add_argument(
         "--template-mode",
         type=str,
-        choices=["tiny", "balanced"],
-        default="balanced",
-        help="tiny = very repetitive local grammar; balanced = slightly broader but still controlled",
+        choices=["balanced", "broad"],
+        default="broad",
+        help="balanced = roughly uniform template sampling; broad = slightly reweighted to emphasize punctuation, negation, questions, and comma clauses",
     )
 
     # Device / solver
@@ -198,8 +237,8 @@ def parse_args():
     p.add_argument("--vg-init-hi", type=float, default=3.0)
     p.add_argument("--vg-init-fixed", type=float, default=VG_INIT_SINGLE)
 
-    p.add_argument("--sample-prompts", type=int, default=6, help="How many sample generations to save each epoch")
-    p.add_argument("--sample-max-len", type=int, default=10, help="Max generated words after the seed context")
+    p.add_argument("--sample-prompts", type=int, default=8, help="How many sample generations to save each epoch")
+    p.add_argument("--sample-max-len", type=int, default=12, help="Max generated tokens after the seed context")
     p.add_argument("--final-val", action="store_true")
     return p.parse_args()
 
@@ -207,64 +246,155 @@ def parse_args():
 # -------------------------
 # Synthetic language data
 # -------------------------
-def sample_np(subject: bool = False) -> List[str]:
-    det = random.choice(DETERMINERS)
-    noun_pool = AGENT_NOUNS if subject else OBJECT_NOUNS
-    noun = random.choice(noun_pool)
-    return [det, noun]
+def subject_copula(pron: str) -> str:
+    if pron == "I":
+        return "am"
+    return "are"
+
+
+def sample_statement_punct() -> str:
+    return random.choice(STATEMENT_END)
+
+
+def sample_subject_token() -> str:
+    if random.random() < 0.55:
+        return random.choice(PRONOUNS)
+    return random.choice(NOUNS)
+
+
+def sample_predicate_verb() -> str:
+    return random.choice(VERBS)
+
+
+def sentence_templates() -> List[str]:
+    return [
+        "pron_desc",
+        "pron_not_desc",
+        "noun_desc",
+        "noun_not_desc",
+        "pron_here",
+        "pron_not_here",
+        "noun_here",
+        "verb_stmt_pron",
+        "verb_stmt_noun",
+        "verb_stmt_pron_again",
+        "verb_stmt_noun_again",
+        "why_desc",
+        "where_pron",
+        "where_noun",
+    ]
 
 
 def sample_sentence(template_mode: str) -> List[str]:
-    """
-    Generates short grammar-controlled sentences with only 16 words.
-    Tokens do NOT include BOS/EOS here; those are added later when windows are built.
-    """
-    subj = sample_np(subject=True)
-    r = random.random()
+    templates = sentence_templates()
+    if template_mode == "balanced":
+        template = random.choice(templates)
+    else:
+        template = random.choices(
+            population=templates,
+            weights=[
+                1.2, 1.0, 1.2, 1.0,
+                1.1, 0.9, 1.0,
+                1.2, 1.2, 1.0, 1.0,
+                1.1, 1.0, 1.0,
+            ],
+            k=1,
+        )[0]
 
-    if template_mode == "tiny":
-        if r < 0.34:
-            return subj + ["runs"]
-        if r < 0.60:
-            return subj + ["is", "red"]
-        if r < 0.80:
-            return subj + [random.choice(TRANSITIVE_VERBS)] + sample_np(subject=False)
-        return subj + ["is", "on"] + sample_np(subject=False)
+    if template == "pron_desc":
+        subj = random.choice(PRONOUNS)
+        cop = subject_copula(subj)
+        return [subj, cop, random.choice(DESCRIPTORS), sample_statement_punct()]
 
-    template = random.choice(["intransitive", "attribute", "transitive", "locative"])
-    if template == "intransitive":
-        return subj + ["runs"]
-    if template == "attribute":
-        return subj + ["is", "red"]
-    if template == "transitive":
-        return subj + [random.choice(TRANSITIVE_VERBS)] + sample_np(subject=False)
-    return subj + ["is", "on"] + sample_np(subject=False)
+    if template == "pron_not_desc":
+        subj = random.choice(PRONOUNS)
+        cop = subject_copula(subj)
+        return [subj, cop, "not", random.choice(DESCRIPTORS), sample_statement_punct()]
+
+    if template == "noun_desc":
+        subj = random.choice(NOUNS)
+        return [subj, "is", random.choice(DESCRIPTORS), sample_statement_punct()]
+
+    if template == "noun_not_desc":
+        subj = random.choice(NOUNS)
+        return [subj, "is", "not", random.choice(DESCRIPTORS), sample_statement_punct()]
+
+    if template == "pron_here":
+        subj = random.choice(PRONOUNS)
+        cop = subject_copula(subj)
+        end = sample_statement_punct()
+        if random.random() < 0.35:
+            return [subj, cop, "here", ",", "again", end]
+        return [subj, cop, "here", end]
+
+    if template == "pron_not_here":
+        subj = random.choice(PRONOUNS)
+        cop = subject_copula(subj)
+        return [subj, cop, "not", "here", sample_statement_punct()]
+
+    if template == "noun_here":
+        subj = random.choice(NOUNS)
+        if random.random() < 0.35:
+            return [subj, "is", "here", ",", "again", sample_statement_punct()]
+        return [subj, "is", "here", sample_statement_punct()]
+
+    if template == "verb_stmt_pron":
+        subj = random.choice(PRONOUNS)
+        return [subj, sample_predicate_verb(), random.choice(NOUNS), sample_statement_punct()]
+
+    if template == "verb_stmt_noun":
+        subj = random.choice(NOUNS)
+        return [subj, sample_predicate_verb(), random.choice(NOUNS), sample_statement_punct()]
+
+    if template == "verb_stmt_pron_again":
+        subj = random.choice(PRONOUNS)
+        return [subj, sample_predicate_verb(), random.choice(NOUNS), ",", "again", sample_statement_punct()]
+
+    if template == "verb_stmt_noun_again":
+        subj = random.choice(NOUNS)
+        return [subj, sample_predicate_verb(), random.choice(NOUNS), ",", "again", sample_statement_punct()]
+
+    if template == "why_desc":
+        subj = sample_subject_token()
+        if subj in PRONOUNS:
+            cop = subject_copula(subj)
+        else:
+            cop = "is"
+        if random.random() < 0.5:
+            return ["why", subj, cop, random.choice(DESCRIPTORS), random.choice(QUESTION_END)]
+        return ["why", subj, cop, "not", random.choice(DESCRIPTORS), random.choice(QUESTION_END)]
+
+    if template == "where_pron":
+        subj = random.choice(PRONOUNS)
+        cop = subject_copula(subj)
+        return ["where", subj, cop, random.choice(QUESTION_END)]
+
+    if template == "where_noun":
+        subj = random.choice(NOUNS)
+        return ["where", subj, "is", random.choice(QUESTION_END)]
+
+    raise RuntimeError(f"Unhandled template: {template}")
 
 
-def token_id_to_bits(tok_id: int) -> np.ndarray:
-    return np.array([(tok_id >> shift) & 1 for shift in range(TOKEN_BITS - 1, -1, -1)], dtype=float)
+def token_id_to_embed4(tok_id: int) -> np.ndarray:
+    tok = INPUT_ID_TO_WORD[int(tok_id)]
+    return np.asarray(TOKEN_EMBED_4D[tok], dtype=float)
 
 
-def encode_context_tokens(ctx_ids: Sequence[int], bit_v0: float, bit_v1: float) -> np.ndarray:
+def encode_context_tokens(ctx_ids: Sequence[int]) -> np.ndarray:
     if len(ctx_ids) != CONTEXT_LEN:
         raise ValueError(f"Expected context length {CONTEXT_LEN}, got {len(ctx_ids)}")
-    bits: List[float] = []
+    vals: List[float] = []
     for tid in ctx_ids:
-        code = token_id_to_bits(int(tid))
-        volts = np.where(code > 0.5, bit_v1, bit_v0)
-        bits.extend(volts.tolist())
-    return np.asarray(bits, dtype=float)
+        vals.extend(token_id_to_embed4(int(tid)).tolist())
+    return np.asarray(vals, dtype=float)
 
 
 def build_windows_from_sentence(
     tokens: Sequence[str],
-    bit_v0: float,
-    bit_v1: float,
 ) -> Tuple[List[np.ndarray], List[int], List[Tuple[int, ...]]]:
-    bos_id = WORD_TO_ID["<BOS>"]
-    eos_id = WORD_TO_ID["<EOS>"]
-    ids = [WORD_TO_ID[t] for t in tokens] + [eos_id]
-    padded = [bos_id] * CONTEXT_LEN + ids
+    bos_id = INPUT_WORD_TO_ID["<BOS>"]
+    padded = [bos_id] * CONTEXT_LEN + [INPUT_WORD_TO_ID[t] for t in tokens]
 
     xs: List[np.ndarray] = []
     ys: List[int] = []
@@ -272,31 +402,71 @@ def build_windows_from_sentence(
 
     for i in range(CONTEXT_LEN, len(padded)):
         ctx = padded[i - CONTEXT_LEN:i]
-        y = padded[i]
-        xs.append(encode_context_tokens(ctx, bit_v0=bit_v0, bit_v1=bit_v1))
+        next_input_id = padded[i]
+        next_tok = INPUT_ID_TO_WORD[int(next_input_id)]
+        if next_tok == "<BOS>":
+            raise RuntimeError("<BOS> should never be a target token")
+        y = OUTPUT_WORD_TO_ID[next_tok]
+        xs.append(encode_context_tokens(ctx))
         ys.append(int(y))
         ctx_keys.append(tuple(int(t) for t in ctx))
     return xs, ys, ctx_keys
 
 
-def build_language_dataset(
-    num_sentences: int,
-    template_mode: str,
-    bit_v0: float,
-    bit_v1: float,
-) -> Tuple[List[np.ndarray], List[int], List[Tuple[int, ...]], List[List[str]]]:
+def build_windows_from_sentences(
+    sentences: Sequence[Sequence[str]],
+) -> Tuple[List[np.ndarray], List[int], List[Tuple[int, ...]], Counter]:
     all_x: List[np.ndarray] = []
     all_y: List[int] = []
     all_ctx_keys: List[Tuple[int, ...]] = []
-    sentences: List[List[str]] = []
-    for _ in range(int(num_sentences)):
-        sent = sample_sentence(template_mode)
-        x_s, y_s, ctx_s = build_windows_from_sentence(sent, bit_v0=bit_v0, bit_v1=bit_v1)
+    target_counter: Counter = Counter()
+    for sent in sentences:
+        x_s, y_s, ctx_s = build_windows_from_sentence(sent)
         all_x.extend(x_s)
         all_y.extend(y_s)
         all_ctx_keys.extend(ctx_s)
+        for y in y_s:
+            target_counter[OUTPUT_ID_TO_WORD[int(y)]] += 1
+    return all_x, all_y, all_ctx_keys, target_counter
+
+
+def build_sentence_corpus(
+    num_sentences: int,
+    template_mode: str,
+    max_sentence_words: int,
+    min_target_count: int,
+) -> Tuple[List[List[str]], Dict[str, int]]:
+    if num_sentences < 1:
+        raise ValueError("num_sentences must be >= 1")
+    if min_target_count < 0:
+        raise ValueError("min_target_count must be >= 0")
+
+    sentences: List[List[str]] = []
+    target_counter: Counter = Counter()
+    attempts = 0
+    max_attempts = max(10000, int(num_sentences) * 80)
+
+    def coverage_ok() -> bool:
+        if min_target_count <= 0:
+            return True
+        return all(target_counter.get(tok, 0) >= min_target_count for tok in OUTPUT_VOCAB)
+
+    while (len(sentences) < int(num_sentences)) or (not coverage_ok()):
+        if attempts >= max_attempts:
+            break
+        attempts += 1
+        sent = sample_sentence(template_mode)
+        if len(sent) > int(max_sentence_words):
+            continue
+        x_s, y_s, _ = build_windows_from_sentence(sent)
+        if not x_s or not y_s:
+            continue
         sentences.append(sent)
-    return all_x, all_y, all_ctx_keys, sentences
+        for y in y_s:
+            target_counter[OUTPUT_ID_TO_WORD[int(y)]] += 1
+
+    coverage = {tok: int(target_counter.get(tok, 0)) for tok in OUTPUT_VOCAB}
+    return sentences, coverage
 
 
 # -------------------------
@@ -308,32 +478,6 @@ def one_hot(y: int, K: int) -> np.ndarray:
     return q
 
 
-def build_context_target_distributions(
-    ctx_keys: Sequence[Tuple[int, ...]],
-    ys: Sequence[int],
-    K: int,
-) -> Dict[Tuple[int, ...], np.ndarray]:
-    counts: Dict[Tuple[int, ...], np.ndarray] = {}
-    for ctx, y in zip(ctx_keys, ys):
-        if ctx not in counts:
-            counts[ctx] = np.zeros(K, dtype=float)
-        counts[ctx][int(y)] += 1.0
-
-    q_map: Dict[Tuple[int, ...], np.ndarray] = {}
-    for ctx, c in counts.items():
-        s = float(np.sum(c))
-        q_map[ctx] = c / s if s > 0.0 else np.full(K, 1.0 / K, dtype=float)
-    return q_map
-
-
-def build_unigram_target_distribution(ys: Sequence[int], K: int) -> np.ndarray:
-    c = np.zeros(K, dtype=float)
-    for y in ys:
-        c[int(y)] += 1.0
-    s = float(np.sum(c))
-    return c / s if s > 0.0 else np.full(K, 1.0 / K, dtype=float)
-
-
 def top_words_from_q(q: np.ndarray, topk: int = 4) -> str:
     q = np.asarray(q, dtype=float)
     idx = np.argsort(-q)[:topk]
@@ -341,7 +485,7 @@ def top_words_from_q(q: np.ndarray, topk: int = 4) -> str:
     for i in idx:
         if q[i] <= 0.0:
             continue
-        parts.append(f"{ID_TO_WORD[int(i)]}:{float(q[i]):.2f}")
+        parts.append(f"{OUTPUT_ID_TO_WORD[int(i)]}:{float(q[i]):.2f}")
     return ", ".join(parts) if parts else "<none>"
 
 
@@ -364,8 +508,9 @@ def make_dense_io_topology() -> DenseIOTopology:
     meta = {
         "kind": "dense_input_output_bipartite",
         "context_len": CONTEXT_LEN,
-        "token_bits": TOKEN_BITS,
-        "vocab_size": VOCAB_SIZE,
+        "token_embed_dim": TOKEN_EMBED_DIM,
+        "input_vocab_size": len(INPUT_VOCAB),
+        "output_vocab_size": len(OUTPUT_VOCAB),
         "num_edges": len(edges_D),
     }
     return DenseIOTopology(
@@ -505,7 +650,7 @@ def mk_netlist(
         raise ValueError("vg_unique size mismatch")
 
     lines: List[str] = []
-    lines.append(".title clln_dense_language16_softxent")
+    lines.append(".title clln_dense_language32_embed4_onehotxent")
     lines.append(f'.include "{device_lib_path}"')
 
     if solver.lower() == "klu":
@@ -610,18 +755,8 @@ def compute_vg_saturation_stats(vg_unique: np.ndarray) -> Dict[str, float]:
     }
 
 
-def decode_context_bits_to_words(x: np.ndarray, bit_v0: float, bit_v1: float) -> List[str]:
-    x = np.asarray(x, dtype=float)
-    out: List[str] = []
-    thresh = 0.5 * (bit_v0 + bit_v1)
-    for i in range(CONTEXT_LEN):
-        seg = x[i * TOKEN_BITS:(i + 1) * TOKEN_BITS]
-        bits = [(1 if v > thresh else 0) for v in seg]
-        tid = 0
-        for b in bits:
-            tid = (tid << 1) | b
-        out.append(ID_TO_WORD.get(tid, f"<UNK:{tid}>"))
-    return out
+def decode_context_ids_to_words(ctx_ids: Sequence[int]) -> List[str]:
+    return [INPUT_ID_TO_WORD[int(t)] for t in ctx_ids]
 
 
 def greedy_generate_from_context(
@@ -630,15 +765,13 @@ def greedy_generate_from_context(
     vg_unique: np.ndarray,
     netlist: str,
     seed_ctx_ids: List[int],
-    bit_v0: float,
-    bit_v1: float,
     max_len: int,
 ) -> List[str]:
     ctx = list(seed_ctx_ids)
     out_words: List[str] = []
     for _ in range(max_len):
         mk_free_all(ng, topo.K)
-        xin = encode_context_tokens(ctx, bit_v0=bit_v0, bit_v1=bit_v1)
+        xin = encode_context_tokens(ctx)
         alter_inputs_named(ng, xin)
         ok, _, data, _ = run_and_read(ng, {"out": topo.out_nodes.tolist()})
         if not ok or data is None:
@@ -655,10 +788,10 @@ def greedy_generate_from_context(
         if not np.all(np.isfinite(Vout)):
             break
         yhat = pred_label(Vout)
-        w = ID_TO_WORD[int(yhat)]
+        w = OUTPUT_ID_TO_WORD[int(yhat)]
         out_words.append(w)
-        ctx = ctx[1:] + [int(yhat)]
-        if w == "<EOS>":
+        ctx = ctx[1:] + [INPUT_WORD_TO_ID[w]]
+        if w in TERMINAL_PUNCT:
             break
     return out_words
 
@@ -669,10 +802,8 @@ def save_plots(run_dir: Path):
         return np.load(p) if p.exists() else None
 
     tr_acc = _load("0_train_acc.npy")
-    tr_support_acc = _load("0_train_support_acc.npy")
     tr_ce = _load("0_train_ce.npy")
     va_acc = _load("0_val_acc.npy")
-    va_support_acc = _load("0_val_support_acc.npy")
     va_ce = _load("0_val_ce.npy")
     ep_total = _load("0_epoch_total_s.npy")
     ep_free = _load("0_epoch_free_s.npy")
@@ -683,9 +814,6 @@ def save_plots(run_dir: Path):
         plt.figure()
         plt.plot(np.arange(len(va_acc)), va_acc, label="val exact acc")
         plt.plot(np.arange(1, len(tr_acc) + 1), tr_acc, label="train exact acc")
-        if tr_support_acc is not None and va_support_acc is not None:
-            plt.plot(np.arange(len(va_support_acc)), va_support_acc, label="val support acc")
-            plt.plot(np.arange(1, len(tr_support_acc) + 1), tr_support_acc, label="train support acc")
         plt.xlabel("epoch")
         plt.ylabel("accuracy")
         plt.title("Accuracy vs epoch")
@@ -701,7 +829,7 @@ def save_plots(run_dir: Path):
         plt.plot(np.arange(1, len(tr_ce) + 1), tr_ce, label="train soft CE")
         plt.xlabel("epoch")
         plt.ylabel("cross entropy")
-        plt.title("Soft cross entropy vs epoch")
+        plt.title("Cross entropy vs epoch")
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
@@ -738,10 +866,6 @@ def main():
     gamma = float(args.gamma)
     delta = float(args.delta)
     temp = float(args.softmax_temp)
-    bit_v0 = float(args.bit_v0)
-    bit_v1 = float(args.bit_v1)
-    if bit_v1 <= bit_v0:
-        raise ValueError("--bit-v1 must be > --bit-v0")
     if temp <= 0.0:
         raise ValueError("--softmax-temp must be > 0")
 
@@ -760,24 +884,28 @@ def main():
 
     template_mode = str(args.template_mode)
     num_sentences = int(args.num_sentences)
+    min_target_count = int(args.min_target_count)
     if num_sentences < 1:
         raise ValueError("--num-sentences must be >= 1")
+    if int(args.max_sentence_words) < 4:
+        raise ValueError("--max-sentence-words must be >= 4")
 
-    all_x, all_y, all_ctx_keys, sentences = build_language_dataset(
+    sentences, total_target_coverage = build_sentence_corpus(
         num_sentences=num_sentences,
         template_mode=template_mode,
-        bit_v0=bit_v0,
-        bit_v1=bit_v1,
+        max_sentence_words=int(args.max_sentence_words),
+        min_target_count=min_target_count,
     )
 
-    X_train, X_val, y_train, y_val, ctx_train, ctx_val = train_test_split(
-        all_x,
-        all_y,
-        all_ctx_keys,
+    train_sentences, val_sentences = train_test_split(
+        sentences,
         test_size=float(args.val_frac),
         random_state=seed,
-        stratify=np.asarray(all_y, dtype=int),
+        shuffle=True,
     )
+
+    X_train, y_train, ctx_train, train_target_counter = build_windows_from_sentences(train_sentences)
+    X_val, y_val, ctx_val, val_target_counter = build_windows_from_sentences(val_sentences)
 
     if args.max_train and args.max_train > 0:
         X_train = X_train[: args.max_train]
@@ -801,9 +929,6 @@ def main():
     if topo.Nin != INPUT_DIM or topo.K != OUTPUT_DIM:
         raise RuntimeError("Internal topology dimensions do not match language task")
 
-    ctx_q_train = build_context_target_distributions(train_ctx, train_y, topo.K)
-    unigram_q_train = build_unigram_target_distribution(train_y, topo.K)
-
     if vg_init_mode == "fixed":
         vg_unique = np.full((topo.num_edges,), vg_init_single, dtype=float)
     else:
@@ -811,7 +936,7 @@ def main():
             raise ValueError("--vg-init-hi must be > --vg-init-lo for random init")
         vg_unique = np.random.uniform(vg_init_lo, vg_init_hi, size=(topo.num_edges,)).astype(float)
 
-    results_dir = Path(__file__).resolve().parent / "results_language_16_softce"
+    results_dir = Path(__file__).resolve().parent / "results_language_32_embed4_onehotce"
     env_run_dir = os.environ.get("RUN_DIR")
     if env_run_dir:
         run_dir = Path(env_run_dir)
@@ -826,29 +951,37 @@ def main():
     log_f = setup_logging(run_dir)
 
     cfg_str = (
-        f"seed={seed} gamma={gamma} delta={delta} T={temp} bit=[{bit_v0},{bit_v1}] "
-        f"context={CONTEXT_LEN} bits/token={TOKEN_BITS} Nin={topo.Nin} K={topo.K} "
-        f"sentences={num_sentences} template={template_mode} rails=[{vminus_val},{vplus_val}] "
-        f"solver={solver} body_tie={body_tie} rs_clamp={RS_CLAMP} "
+        f"seed={seed} gamma={gamma} delta={delta} T={temp} "
+        f"context={CONTEXT_LEN} embed_dim={TOKEN_EMBED_DIM} Nin={topo.Nin} K={topo.K} "
+        f"sentences={len(sentences)} min_target_count={min_target_count} max_words={int(args.max_sentence_words)} template={template_mode} "
+        f"rails=[{vminus_val},{vplus_val}] solver={solver} body_tie={body_tie} rs_clamp={RS_CLAMP} "
         f"vg_init={vg_init_mode} epochs={epochs} device_include={device_lib} subckt={DEVICE_SUBCKT}"
     )
 
-    print("=== RUN START (clln_dense_language16_softxent) ===", flush=True)
+    print("=== RUN START (clln_dense_language32_embed4_onehotxent) ===", flush=True)
     print(cfg_str, flush=True)
-    print(f"train_windows={len(train_x)} val_windows={len(val_x)} edges={topo.num_edges}", flush=True)
-    print(f"unique_train_contexts={len(ctx_q_train)}", flush=True)
+    print(
+        f"train_sentences={len(train_sentences)} val_sentences={len(val_sentences)} "
+        f"train_windows={len(train_x)} val_windows={len(val_x)} edges={topo.num_edges}",
+        flush=True,
+    )
 
-    (run_dir / "vocab.json").write_text(json.dumps({"vocab": VOCAB, "word_to_id": WORD_TO_ID}, indent=2))
-    (run_dir / "sample_sentences.txt").write_text("\n".join(" ".join(s) for s in sentences[:200]))
+    (run_dir / "input_vocab.json").write_text(json.dumps({"input_vocab": INPUT_VOCAB, "word_to_id": INPUT_WORD_TO_ID}, indent=2))
+    (run_dir / "output_vocab.json").write_text(json.dumps({"output_vocab": OUTPUT_VOCAB, "word_to_id": OUTPUT_WORD_TO_ID}, indent=2))
+    (run_dir / "token_embed_4d.json").write_text(json.dumps(TOKEN_EMBED_4D, indent=2))
+    (run_dir / "sample_sentences.txt").write_text("\n".join(" ".join(s) for s in sentences[:300]))
+    (run_dir / "target_coverage_total.json").write_text(json.dumps(total_target_coverage, indent=2))
+    (run_dir / "target_coverage_train.json").write_text(json.dumps({k: int(train_target_counter.get(k, 0)) for k in OUTPUT_VOCAB}, indent=2))
+    (run_dir / "target_coverage_val.json").write_text(json.dumps({k: int(val_target_counter.get(k, 0)) for k in OUTPUT_VOCAB}, indent=2))
 
     preview_items = []
-    for i, (ctx, q) in enumerate(list(ctx_q_train.items())[:100]):
-        words = [ID_TO_WORD[t] for t in ctx]
+    for ctx, y in list(zip(train_ctx, train_y))[:120]:
+        words = [INPUT_ID_TO_WORD[t] for t in ctx]
         preview_items.append({
             "context": words,
-            "target_dist": {ID_TO_WORD[j]: float(q[j]) for j in np.where(q > 0)[0].tolist()},
+            "target_word": OUTPUT_ID_TO_WORD[int(y)],
         })
-    (run_dir / "context_target_preview.json").write_text(json.dumps(preview_items, indent=2))
+    (run_dir / "sample_target_preview.json").write_text(json.dumps(preview_items, indent=2))
 
     netlist = mk_netlist(
         topo=topo,
@@ -868,18 +1001,22 @@ def main():
         "seed": seed,
         "timestamp": datetime.now().isoformat(),
         "dataset": {
-            "name": "synthetic_language_16word",
-            "num_sentences": num_sentences,
+            "name": "synthetic_language_32token_embed4",
+            "num_sentences_requested": num_sentences,
+            "num_sentences_actual": len(sentences),
+            "min_target_count": min_target_count,
+            "max_sentence_words": int(args.max_sentence_words),
             "template_mode": template_mode,
             "context_len": CONTEXT_LEN,
-            "token_bits": TOKEN_BITS,
-            "bit_v0": bit_v0,
-            "bit_v1": bit_v1,
-            "vocab": VOCAB,
+            "token_embed_dim": TOKEN_EMBED_DIM,
+            "input_vocab": INPUT_VOCAB,
+            "output_vocab": OUTPUT_VOCAB,
+            "terminal_punctuation": sorted(list(TERMINAL_PUNCT)),
         },
+        "train_sentence_count": len(train_sentences),
+        "val_sentence_count": len(val_sentences),
         "train_count": len(train_x),
         "val_count": len(val_x),
-        "unique_train_contexts": len(ctx_q_train),
         "gamma": gamma,
         "delta": delta,
         "softmax_temp": temp,
@@ -900,7 +1037,7 @@ def main():
             "subckt": DEVICE_SUBCKT,
         },
         "topology": topo.meta,
-        "loss": "soft_cross_entropy",
+        "loss": "onehot_cross_entropy",
         "generation": {
             "sample_prompts": int(args.sample_prompts),
             "sample_max_len": int(args.sample_max_len),
@@ -931,10 +1068,8 @@ def main():
         pass
 
     val_acc_hist: List[float] = []
-    val_support_acc_hist: List[float] = []
     val_ce_hist: List[float] = []
     tr_acc_hist: List[float] = []
-    tr_support_acc_hist: List[float] = []
     tr_ce_hist: List[float] = []
     ep_total_s: List[float] = []
     ep_free_s: List[float] = []
@@ -948,18 +1083,16 @@ def main():
     def eval_free_metrics(epoch: int) -> Tuple[float, float, Dict[str, float]]:
         mk_free_all(ng, topo.K)
         correct = 0
-        support_correct = 0
         total = 0
         loss_sum = 0.0
         count = 0
         reloads = 0
         nonfinite = 0
         qmass_list: List[float] = []
-        unseen_ctx = 0
         confusion = np.zeros((topo.K, topo.K), dtype=int)
         vout_val = np.full((val_n, topo.K), np.nan, dtype=float) if val_n > 0 else np.zeros((0, topo.K), dtype=float)
 
-        for i, (xv, yv, ctxv) in enumerate(zip(val_x, val_y, val_ctx)):
+        for i, (xv, yv) in enumerate(zip(val_x, val_y)):
             alter_inputs_named(ng, xv)
             ok, _, data, _ = run_and_read(ng, {"out": topo.out_nodes.tolist()})
             if not ok or data is None:
@@ -980,14 +1113,9 @@ def main():
 
             pred = pred_label(Vout)
             ytrue = int(yv)
-            if ctxv in ctx_q_train:
-                q_target = ctx_q_train[ctxv]
-            else:
-                unseen_ctx += 1
-                q_target = unigram_q_train
+            q_target = one_hot(ytrue, topo.K)
 
             correct += int(pred == ytrue)
-            support_correct += int(q_target[pred] > 0.0)
             total += 1
             confusion[ytrue, pred] += 1
 
@@ -1006,34 +1134,30 @@ def main():
             "val_reloads": float(reloads),
             "val_nonfinite": float(nonfinite),
             "val_qmass_mean": float(np.mean(qmass_list)) if qmass_list else float("nan"),
-            "val_support_acc": float(support_correct / total) if total else float("nan"),
-            "val_unseen_contexts": float(unseen_ctx),
         }
         acc = (correct / total) if total else float("nan")
         loss = (loss_sum / count) if count else float("nan")
         return float(acc), float(loss), diag
 
     def save_generation_samples(epoch: int):
-        n = min(int(args.sample_prompts), len(val_x))
+        n = min(int(args.sample_prompts), len(val_ctx))
         if n <= 0:
             return
         lines: List[str] = []
-        prompt_indices = np.linspace(0, len(val_x) - 1, n, dtype=int)
+        prompt_indices = np.linspace(0, len(val_ctx) - 1, n, dtype=int)
         for j, idx in enumerate(prompt_indices.tolist()):
-            seed_words = decode_context_bits_to_words(val_x[idx], bit_v0=bit_v0, bit_v1=bit_v1)
-            seed_ids = [WORD_TO_ID[w] for w in seed_words]
+            seed_ids = list(val_ctx[idx])
+            seed_words = decode_context_ids_to_words(seed_ids)
             generated = greedy_generate_from_context(
                 ng=ng,
                 topo=topo,
                 vg_unique=vg_unique,
                 netlist=netlist,
                 seed_ctx_ids=seed_ids,
-                bit_v0=bit_v0,
-                bit_v1=bit_v1,
                 max_len=int(args.sample_max_len),
             )
-            target = ID_TO_WORD[int(val_y[idx])]
-            q_target = ctx_q_train.get(val_ctx[idx], unigram_q_train)
+            target = OUTPUT_ID_TO_WORD[int(val_y[idx])]
+            q_target = one_hot(int(val_y[idx]), topo.K)
             seed_clean = [w for w in seed_words if w != "<BOS>"]
             gen_clean = [w for w in generated if w != "<BOS>"]
             lines.append(f"[{j}] seed={' '.join(seed_clean) if seed_clean else '<BOS>'}")
@@ -1044,16 +1168,14 @@ def main():
 
     v0, ce0, diag0 = eval_free_metrics(epoch=0)
     val_acc_hist.append(v0)
-    val_support_acc_hist.append(float(diag0.get("val_support_acc", float("nan"))))
     val_ce_hist.append(ce0)
     np.save(run_dir / "0_val_acc.npy", np.asarray(val_acc_hist, dtype=float))
-    np.save(run_dir / "0_val_support_acc.npy", np.asarray(val_support_acc_hist, dtype=float))
     np.save(run_dir / "0_val_ce.npy", np.asarray(val_ce_hist, dtype=float))
     (run_dir / "0_diag_epoch0.json").write_text(json.dumps(diag0, indent=2))
     save_generation_samples(epoch=0)
     print(
-        f"[epoch 0] {cfg_str} | VAL exact_acc={v0:.4f} support_acc={diag0.get('val_support_acc', float('nan')):.4f} "
-        f"softCE={ce0:.6f} qmass_mean={diag0.get('val_qmass_mean', float('nan')):.4f} unseen_ctx={int(diag0.get('val_unseen_contexts', 0.0))}",
+        f"[epoch 0] {cfg_str} | VAL exact_acc={v0:.4f} "
+        f"softCE={ce0:.6f} qmass_mean={diag0.get('val_qmass_mean', float('nan')):.4f}",
         flush=True,
     )
 
@@ -1063,7 +1185,6 @@ def main():
         np.random.shuffle(order)
 
         train_correct = 0
-        train_support_correct = 0
         train_total = 0
         ce_sum = 0.0
         ce_count = 0
@@ -1081,8 +1202,7 @@ def main():
 
         for idx in order:
             ytrue = int(train_y[idx])
-            ctx_key = train_ctx[idx]
-            q_target = ctx_q_train[ctx_key]
+            q_target = one_hot(ytrue, topo.K)
             mk_free_all(ng, topo.K)
 
             alter_inputs_named(ng, train_x[idx])
@@ -1109,7 +1229,6 @@ def main():
 
             pred = pred_label(Vout)
             train_correct += int(pred == ytrue)
-            train_support_correct += int(q_target[pred] > 0.0)
             train_total += 1
 
             ce, qmass = cross_entropy_from_outputs_soft(Vout, q_target, temp=temp)
@@ -1174,12 +1293,10 @@ def main():
             t_update += float(time.time() - upd0)
 
         tr_acc = (train_correct / train_total) if train_total else float("nan")
-        tr_support_acc = (train_support_correct / train_total) if train_total else float("nan")
         tr_ce = (ce_sum / ce_count) if ce_count else float("nan")
         tr_qmass_mean = (qmass_sum / qmass_count) if qmass_count else float("nan")
 
         tr_acc_hist.append(float(tr_acc))
-        tr_support_acc_hist.append(float(tr_support_acc))
         tr_ce_hist.append(float(tr_ce))
         reload_free_hist.append(int(reload_free))
         reload_clamp_hist.append(int(reload_clamp))
@@ -1188,7 +1305,6 @@ def main():
 
         v_acc, v_ce, diag = eval_free_metrics(epoch=ep)
         val_acc_hist.append(float(v_acc))
-        val_support_acc_hist.append(float(diag.get("val_support_acc", float("nan"))))
         val_ce_hist.append(float(v_ce))
         save_generation_samples(epoch=ep)
 
@@ -1199,10 +1315,8 @@ def main():
         ep_update_s.append(float(t_update))
 
         np.save(run_dir / "0_train_acc.npy", np.asarray(tr_acc_hist, dtype=float))
-        np.save(run_dir / "0_train_support_acc.npy", np.asarray(tr_support_acc_hist, dtype=float))
         np.save(run_dir / "0_train_ce.npy", np.asarray(tr_ce_hist, dtype=float))
         np.save(run_dir / "0_val_acc.npy", np.asarray(val_acc_hist, dtype=float))
-        np.save(run_dir / "0_val_support_acc.npy", np.asarray(val_support_acc_hist, dtype=float))
         np.save(run_dir / "0_val_ce.npy", np.asarray(val_ce_hist, dtype=float))
         np.save(run_dir / "0_epoch_total_s.npy", np.asarray(ep_total_s, dtype=float))
         np.save(run_dir / "0_epoch_free_s.npy", np.asarray(ep_free_s, dtype=float))
@@ -1222,8 +1336,6 @@ def main():
                 "gamma": gamma,
                 "delta": delta,
                 "softmax_temp": temp,
-                "bit_v0": bit_v0,
-                "bit_v1": bit_v1,
                 "rails": [vminus_val, vplus_val],
                 "solver": solver,
                 "body_tie": body_tie,
@@ -1238,12 +1350,11 @@ def main():
                 "epochs": epochs,
                 "device_include_path": device_lib,
                 "device_subckt": DEVICE_SUBCKT,
-                "loss": "soft_cross_entropy",
+                "loss": "onehot_cross_entropy",
                 "template_mode": template_mode,
             },
             "train": {
                 "exact_acc": float(tr_acc),
-                "support_acc": float(tr_support_acc),
                 "soft_ce": float(tr_ce),
                 "qmass_mean": float(tr_qmass_mean),
                 "n_free": int(n_free),
@@ -1255,7 +1366,6 @@ def main():
             },
             "val": {
                 "exact_acc": float(v_acc),
-                "support_acc": float(diag.get("val_support_acc", float("nan"))),
                 "soft_ce": float(v_ce),
                 **{k: float(v) for k, v in diag.items()},
             },
@@ -1271,14 +1381,14 @@ def main():
         (run_dir / f"0_diag_epoch{ep}.json").write_text(json.dumps(diag, indent=2))
 
         print(
-            f"[epoch {ep}/{epochs}] {cfg_str} | TRAIN exact_acc={tr_acc:.4f} support_acc={tr_support_acc:.4f} "
+            f"[epoch {ep}/{epochs}] {cfg_str} | TRAIN exact_acc={tr_acc:.4f} "
             f"softCE={tr_ce:.6f} qmass_mean={tr_qmass_mean:.4f} free={n_free} clamp={n_clamp} "
             f"reloadF={reload_free} reloadC={reload_clamp} nonfiniteF={nonfinite_free} nonfiniteC={nonfinite_clamp}",
             flush=True,
         )
         print(
-            f"[epoch {ep}/{epochs}] {cfg_str} | VAL exact_acc={v_acc:.4f} support_acc={diag.get('val_support_acc', float('nan')):.4f} "
-            f"softCE={v_ce:.6f} qmass_mean={diag.get('val_qmass_mean', float('nan')):.4f} unseen_ctx={int(diag.get('val_unseen_contexts', 0.0))} | "
+            f"[epoch {ep}/{epochs}] {cfg_str} | VAL exact_acc={v_acc:.4f} "
+            f"softCE={v_ce:.6f} qmass_mean={diag.get('val_qmass_mean', float('nan')):.4f} | "
             f"timing total={ep_total:.2f}s free={t_free:.2f}s clamp={t_clamp:.2f}s upd={t_update:.2f}s",
             flush=True,
         )
@@ -1302,7 +1412,7 @@ def main():
     if args.final_val:
         print("FINAL val exact acc=", val_acc_hist[-1] if val_acc_hist else float("nan"), flush=True)
 
-    print("=== RUN END (clln_dense_language16_softxent) ===", flush=True)
+    print("=== RUN END (clln_dense_language32_embed4_onehotxent) ===", flush=True)
     try:
         log_f.flush()
         log_f.close()

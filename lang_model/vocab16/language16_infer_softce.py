@@ -3,7 +3,7 @@
 Autoregressive inference for the 16-token soft-CE language model.
 
 Default checkpoint:
-  results_language_16_softce/sweeps/gdt_20260317-165650/g0.1_d0.1_t0.01
+  vocab16/results_language_16_softce/sweeps/gdt_20260317-165650/g0.1_d0.1_t0.01
 at epoch 11 (best support_acc from the completed sweep).
 """
 

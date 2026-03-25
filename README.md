@@ -5,7 +5,12 @@ Analog NMOS network training with ngspice via PySpice.
 The repo now has two main work areas:
 
 - `scikit_digit/` for the original sklearn-digit experiments
-- `lang_model/` plus `clln_lang_ce_32_6.py` for the synthetic language-model experiments
+- `lang_model/` for the synthetic language-model experiments
+
+The language-model area is now organized by vocabulary size:
+
+- `lang_model/vocab16/`
+- `lang_model/vocab32/`
 
 ## Layout
 
@@ -14,11 +19,7 @@ The repo now has two main work areas:
 - `scikit_digit/`
   - digit trainers, sweep launchers, topology files, and curated result folders
 - `lang_model/`
-  - 16-token language trainers, inference helper, linear baseline, and docs
-- `clln_lang_ce_32_6.py`
-  - 32-token / 6-token-context soft cross-entropy language trainer
-- `results_language_32_softce/`
-  - root-level output tree for `clln_lang_ce_32_6.py`
+  - split into `vocab16/` and `vocab32/` attempts, with local docs and result trees
 
 ## Environment
 
@@ -33,8 +34,10 @@ Examples:
 
 ```bash
 conda run -n p311env python scikit_digit/dense_trainer.py --help
-conda run -n p311env python lang_model/clln_lang_trainer_ce.py --help
-conda run -n p311env python clln_lang_ce_32_6.py --help
+conda run -n p311env python lang_model/vocab16/clln_lang_trainer_ce.py --help
+conda run -n p311env python lang_model/vocab32/clln_lang_ce_32_6.py --help
+conda run -n p311env python lang_model/vocab32/clln_lang_trainer_embed4_onehot_ce.py --help
+conda run -n p311env python lang_model/vocab32/linear_mlp_lang_embed4_onehot_ce.py --help
 ```
 
 ## Quick Start
@@ -48,61 +51,65 @@ conda run -n p311env python scikit_digit/dense_trainer.py 0 --epochs 20
 16-token language CE trainer:
 
 ```bash
-conda run -n p311env python lang_model/clln_lang_trainer_ce.py 0 --epochs 20
+conda run -n p311env python lang_model/vocab16/clln_lang_trainer_ce.py 0 --epochs 20
 ```
 
 16-token language hinge trainer:
 
 ```bash
-conda run -n p311env python lang_model/clln_language_dense_trainer_16.py 0 --epochs 20
+conda run -n p311env python lang_model/vocab16/clln_language_dense_trainer_16.py 0 --epochs 20
 ```
 
 32-token language CE trainer:
 
 ```bash
-conda run -n p311env python clln_lang_ce_32_6.py 0 --epochs 35
+conda run -n p311env python lang_model/vocab32/clln_lang_ce_32_6.py 0 --epochs 35
+```
+
+32-token embed4 one-hot trainer:
+
+```bash
+conda run -n p311env python lang_model/vocab32/clln_lang_trainer_embed4_onehot_ce.py 0 --epochs 20
+```
+
+32-token embed4 linear one-hot baseline:
+
+```bash
+conda run -n p311env python lang_model/vocab32/linear_mlp_lang_embed4_onehot_ce.py 0 --epochs 20
 ```
 
 ## Language-Model Work
 
 ### `lang_model/`
 
-`lang_model/` contains the moved 16-token language experiments:
+`lang_model/` now contains two language-model areas:
 
-- `clln_lang_trainer_ce.py`
-  - dense 24 -> 16 soft-target cross-entropy analog trainer
-- `clln_language_dense_trainer_16.py`
-  - dense 24 -> 16 hinge-set analog trainer
-- `language16_infer_softce.py`
-  - autoregressive inference helper for the best 16-token CE checkpoint
-- `linear_mlp_lang_ce.py`
-  - linear 24 -> 16 softmax baseline for comparison against the analog CE trainer
+- `lang_model/vocab16/`
+  - 16-token trainers, inference helper, baseline, and 16-token result trees
+- `lang_model/vocab32/`
+  - 32-token trainers, linear baseline, analysis outputs, and 32-token result trees
 
 Run outputs for these scripts are written under:
 
-- `lang_model/results_language_16_softce/`
-- `lang_model/results_language_16_hinge/`
-- `lang_model/results_language_16_linear_softce/`
+- `lang_model/vocab16/results_language_16_softce/`
+- `lang_model/vocab16/results_language_16_hinge/`
+- `lang_model/vocab16/results_language_16_linear_softce/`
+- `lang_model/vocab16/results_language_16_onehotce/`
+- `lang_model/vocab32/results_language_32_softce/`
+- `lang_model/vocab32/results_language_32_embed4_onehotce/`
+- `lang_model/vocab32/results_language_32_embed4_linear_onehotce/`
+
+Derived sweep summaries and analysis reports for the 32-token work live under:
+
+- `lang_model/vocab32/analysis_reports/`
 
 Detailed documentation for the 16-token setup lives in:
 
-- `lang_model/README.md`
+- `lang_model/vocab16/README.md`
 
-### `clln_lang_ce_32_6.py`
+Detailed documentation for the 32-token setup lives in:
 
-This is the larger language-model experiment at repo root:
-
-- context length: 6 tokens
-- vocabulary size: 32 tokens
-- soft-target cross-entropy clamp rule
-- outputs written under `results_language_32_softce/`
-
-That folder is run-artifact storage only:
-
-- `results_language_32_softce/runs/`
-- `results_language_32_softce/sweeps/`
-
-The tracked repo does not keep those run artifacts by default.
+- `lang_model/vocab32/README.md`
 
 ## Digit Work
 
@@ -128,4 +135,4 @@ Tracked curated results:
 
 - The analog trainers typically write results relative to the script directory unless `RUN_DIR` is provided.
 - Large run-output trees are intentionally ignored in git.
-- The most current documentation for language-model experiment organization is in `lang_model/README.md`.
+- The top-level language-model layout is documented in `lang_model/README.md`.
