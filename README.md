@@ -2,10 +2,11 @@
 
 Analog NMOS network training with ngspice via PySpice.
 
-The repo now has two main work areas:
+The repo now has three main work areas:
 
 - `scikit_digit/` for the original sklearn-digit experiments
 - `lang_model/` for the synthetic language-model experiments
+- `nonlin_reg/` for the archived-style 4x4 non-linear regression starter
 
 The language-model area is now organized by vocabulary size:
 
@@ -20,6 +21,8 @@ The language-model area is now organized by vocabulary size:
   - digit trainers, sweep launchers, topology files, and curated result folders
 - `lang_model/`
   - split into `vocab16/` and `vocab32/` attempts, with local docs and result trees
+- `nonlin_reg/`
+  - 4x4 non-linear regression starter aligned to the archived small-grid PNAS-style reproduction
 
 ## Environment
 
@@ -35,6 +38,7 @@ Examples:
 ```bash
 conda run -n p311env python scikit_digit/dense_trainer.py --help
 conda run -n p311env python lang_model/vocab16/clln_lang_trainer_ce.py --help
+conda run -n p311env python lang_model/vocab16/analyze_best_onehot_support_model.py --help
 conda run -n p311env python lang_model/vocab32/clln_lang_ce_32_6.py --help
 conda run -n p311env python lang_model/vocab32/clln_lang_trainer_embed4_onehot_ce.py --help
 conda run -n p311env python lang_model/vocab32/linear_mlp_lang_embed4_onehot_ce.py --help
@@ -46,6 +50,12 @@ Digit trainer:
 
 ```bash
 conda run -n p311env python scikit_digit/dense_trainer.py 0 --epochs 20
+```
+
+4x4 non-linear regression starter:
+
+```bash
+conda run -n p311env python nonlin_reg/nonlin_reg_4x4_baseline.py --epochs 20
 ```
 
 16-token language CE trainer:
@@ -95,6 +105,7 @@ Run outputs for these scripts are written under:
 - `lang_model/vocab16/results_language_16_hinge/`
 - `lang_model/vocab16/results_language_16_linear_softce/`
 - `lang_model/vocab16/results_language_16_onehotce/`
+- `lang_model/vocab16/analysis_onehot_best_support_val/`
 - `lang_model/vocab32/results_language_32_softce/`
 - `lang_model/vocab32/results_language_32_embed4_onehotce/`
 - `lang_model/vocab32/results_language_32_embed4_linear_onehotce/`

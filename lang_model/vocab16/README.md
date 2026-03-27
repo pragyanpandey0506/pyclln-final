@@ -14,6 +14,8 @@ This folder contains the 16-token synthetic language-model work and its local ut
   - linear 24 -> 16 softmax baseline using the same input/output structure as the analog CE trainer
 - `language16_infer_softce.py`
   - inference helper for the best 16-token CE checkpoint
+- `analyze_best_onehot_support_model.py`
+  - selects the best one-hot CE checkpoint among `support_acc = 1.0` runs, then writes LM-style diagnostics and figures
 
 ## Result Trees
 
@@ -21,6 +23,11 @@ This folder contains the 16-token synthetic language-model work and its local ut
 - `results_language_16_onehotce/`
 - `results_language_16_hinge/`
 - `results_language_16_linear_softce/`
+
+## Analysis Outputs
+
+- `analysis_onehot_best_support_val/`
+  - generated figures, tables, and report for the best 16-token one-hot CE support-perfect checkpoint
 
 ## 16-Token Task
 
@@ -50,6 +57,7 @@ conda run -n p311env python lang_model/vocab16/clln_lang_trainer_onehot_ce.py 0 
 conda run -n p311env python lang_model/vocab16/clln_language_dense_trainer_16.py 0 --epochs 20
 conda run -n p311env python lang_model/vocab16/linear_mlp_lang_ce.py 0 --epochs 20
 conda run -n p311env python lang_model/vocab16/language16_infer_softce.py --prompt "the boy"
+conda run -n p311env python lang_model/vocab16/analyze_best_onehot_support_model.py
 ```
 
 To force any trainer into a specific output folder:

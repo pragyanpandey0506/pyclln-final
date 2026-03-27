@@ -28,6 +28,7 @@ conda run -n p311env python lang_model/vocab16/clln_lang_trainer_onehot_ce.py 0 
 conda run -n p311env python lang_model/vocab16/clln_language_dense_trainer_16.py 0 --epochs 20
 conda run -n p311env python lang_model/vocab16/linear_mlp_lang_ce.py 0 --epochs 20
 conda run -n p311env python lang_model/vocab16/language16_infer_softce.py --prompt "the boy"
+conda run -n p311env python lang_model/vocab16/analyze_best_onehot_support_model.py
 conda run -n p311env python lang_model/vocab32/clln_lang_ce_32_6.py 0 --epochs 35
 conda run -n p311env python lang_model/vocab32/clln_lang_trainer_embed4_onehot_ce.py 0 --epochs 20
 conda run -n p311env python lang_model/vocab32/linear_mlp_lang_embed4_onehot_ce.py 0 --epochs 20
@@ -41,6 +42,7 @@ conda run -n p311env python lang_model/vocab32/linear_mlp_lang_embed4_onehot_ce.
 - `vocab16/results_language_16_onehotce/`
 - `vocab16/results_language_16_hinge/`
 - `vocab16/results_language_16_linear_softce/`
+- `vocab16/analysis_onehot_best_support_val/`
 
 32-token outputs:
 
