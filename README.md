@@ -26,7 +26,7 @@ Older linear paths under `lang_model/` are kept as compatibility wrappers.
 - `device_model/`
   - NMOS model card and wrapper subcircuit (`nmos_lvl1_ald1106.lib`)
 - `scikit_digit/`
-  - digit trainers, sweep launchers, topology files, and curated result folders
+  - digit trainers, sweep launchers, topology files, split-backend experiments under `circuit_split/`, and curated result folders
 - `lang_model/`
   - split into `vocab16/` and `vocab32/` attempts, with local docs and result trees
 - `linear_net/`
@@ -197,6 +197,7 @@ Main digit scripts:
 - `scikit_digit/auto_prune_trainer.py`
 - `scikit_digit/dense_trainer_avgappr.py`
 - `scikit_digit/dense_trainer_cross_entropy.py`
+- `scikit_digit/circuit_split/dense_trainer_split.py`
 - `scikit_digit/auto_prune_sweep.py`
 - `scikit_digit/xent_sweep.py`
 

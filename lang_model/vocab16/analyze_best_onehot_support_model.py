@@ -455,6 +455,7 @@ def plot_training_uncertainty(
     ax.set_title("Perplexity")
     ax.set_xlabel("Epoch")
     ax.set_ylabel("exp(soft CE)")
+    ax.set_ylim(0.0, 10.0)
     ax.grid(alpha=0.25)
 
     ax = axes[1, 0]

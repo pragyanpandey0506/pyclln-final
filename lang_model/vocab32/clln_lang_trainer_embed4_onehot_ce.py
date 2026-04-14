@@ -36,6 +36,7 @@ import argparse
 import json
 import os
 import random
+import subprocess
 import sys
 import time
 from collections import Counter
@@ -240,6 +241,8 @@ def parse_args():
     p.add_argument("--sample-prompts", type=int, default=8, help="How many sample generations to save each epoch")
     p.add_argument("--sample-max-len", type=int, default=12, help="Max generated tokens after the seed context")
     p.add_argument("--final-val", action="store_true")
+    p.add_argument("--worker-run-dir", type=str, default="", help=argparse.SUPPRESS)
+    p.add_argument("--worker-epoch", type=int, default=-1, help=argparse.SUPPRESS)
     return p.parse_args()
 
 
@@ -853,11 +856,633 @@ def save_plots(run_dir: Path):
         plt.close()
 
 
-# -------------------------
-# Main
-# -------------------------
-def main():
-    args = parse_args()
+def build_cfg_str(
+    *,
+    seed: int,
+    gamma: float,
+    delta: float,
+    temp: float,
+    topo: DenseIOTopology,
+    num_sentences_actual: int,
+    min_target_count: int,
+    max_sentence_words: int,
+    template_mode: str,
+    vminus_val: float,
+    vplus_val: float,
+    solver: str,
+    body_tie: str,
+    vg_init_mode: str,
+    epochs: int,
+    device_lib: str,
+) -> str:
+    return (
+        f"seed={seed} gamma={gamma} delta={delta} T={temp} "
+        f"context={CONTEXT_LEN} embed_dim={TOKEN_EMBED_DIM} Nin={topo.Nin} K={topo.K} "
+        f"sentences={num_sentences_actual} min_target_count={min_target_count} max_words={max_sentence_words} template={template_mode} "
+        f"rails=[{vminus_val},{vplus_val}] solver={solver} body_tie={body_tie} rs_clamp={RS_CLAMP} "
+        f"vg_init={vg_init_mode} epochs={epochs} device_include={device_lib} subckt={DEVICE_SUBCKT}"
+    )
+
+
+def load_hist_list(run_dir: Path, name: str, dtype=float) -> List[float]:
+    path = run_dir / name
+    if not path.exists():
+        return []
+    arr = np.asarray(np.load(path), dtype=dtype)
+    return arr.tolist()
+
+
+def save_history_arrays(
+    run_dir: Path,
+    *,
+    tr_acc_hist: Sequence[float],
+    tr_ce_hist: Sequence[float],
+    val_acc_hist: Sequence[float],
+    val_ce_hist: Sequence[float],
+    ep_total_s: Sequence[float],
+    ep_free_s: Sequence[float],
+    ep_clamp_s: Sequence[float],
+    ep_update_s: Sequence[float],
+    reload_free_hist: Sequence[int],
+    reload_clamp_hist: Sequence[int],
+    nonfinite_free_hist: Sequence[int],
+    nonfinite_clamp_hist: Sequence[int],
+):
+    np.save(run_dir / "0_train_acc.npy", np.asarray(tr_acc_hist, dtype=float))
+    np.save(run_dir / "0_train_ce.npy", np.asarray(tr_ce_hist, dtype=float))
+    np.save(run_dir / "0_val_acc.npy", np.asarray(val_acc_hist, dtype=float))
+    np.save(run_dir / "0_val_ce.npy", np.asarray(val_ce_hist, dtype=float))
+    np.save(run_dir / "0_epoch_total_s.npy", np.asarray(ep_total_s, dtype=float))
+    np.save(run_dir / "0_epoch_free_s.npy", np.asarray(ep_free_s, dtype=float))
+    np.save(run_dir / "0_epoch_clamp_s.npy", np.asarray(ep_clamp_s, dtype=float))
+    np.save(run_dir / "0_epoch_update_s.npy", np.asarray(ep_update_s, dtype=float))
+    np.save(run_dir / "0_reload_free.npy", np.asarray(reload_free_hist, dtype=int))
+    np.save(run_dir / "0_reload_clamp.npy", np.asarray(reload_clamp_hist, dtype=int))
+    np.save(run_dir / "0_nonfinite_free.npy", np.asarray(nonfinite_free_hist, dtype=int))
+    np.save(run_dir / "0_nonfinite_clamp.npy", np.asarray(nonfinite_clamp_hist, dtype=int))
+
+
+def load_saved_dataset(run_dir: Path) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    train_x = np.asarray(np.load(run_dir / "train_x.npy"), dtype=float)
+    train_y = np.asarray(np.load(run_dir / "train_y.npy"), dtype=int)
+    val_x = np.asarray(np.load(run_dir / "val_x.npy"), dtype=float)
+    val_y = np.asarray(np.load(run_dir / "val_y.npy"), dtype=int)
+    val_ctx = np.asarray(np.load(run_dir / "val_ctx.npy"), dtype=int)
+    return train_x, train_y, val_x, val_y, val_ctx
+
+
+def eval_free_metrics(
+    *,
+    ng: NgSpiceShared,
+    topo: DenseIOTopology,
+    netlist: str,
+    vg_unique: np.ndarray,
+    val_x: np.ndarray,
+    val_y: np.ndarray,
+    val_n: int,
+    run_dir: Path,
+    temp: float,
+    epoch: int,
+) -> Tuple[float, float, Dict[str, float]]:
+    mk_free_all(ng, topo.K)
+    correct = 0
+    total = 0
+    loss_sum = 0.0
+    count = 0
+    reloads = 0
+    nonfinite = 0
+    qmass_list: List[float] = []
+    confusion = np.zeros((topo.K, topo.K), dtype=int)
+    vout_val = np.full((val_n, topo.K), np.nan, dtype=float) if val_n > 0 else np.zeros((0, topo.K), dtype=float)
+
+    for i, (xv, yv) in enumerate(zip(val_x, val_y)):
+        alter_inputs_named(ng, xv)
+        ok, _, data, _ = run_and_read(ng, {"out": topo.out_nodes.tolist()})
+        if not ok or data is None:
+            reloads += 1
+            try:
+                ng.remove_circuit()
+            except Exception:
+                pass
+            ng.load_circuit(netlist)
+            restore_gate_voltages(ng, vg_unique)
+            mk_free_all(ng, topo.K)
+            continue
+
+        Vout = np.asarray(data["out"], dtype=float)
+        if not np.all(np.isfinite(Vout)):
+            nonfinite += 1
+            continue
+
+        pred = pred_label(Vout)
+        ytrue = int(yv)
+        q_target = one_hot(ytrue, topo.K)
+
+        correct += int(pred == ytrue)
+        total += 1
+        confusion[ytrue, pred] += 1
+
+        ce, qmass = cross_entropy_from_outputs_soft(Vout, q_target, temp=temp)
+        loss_sum += float(ce)
+        count += 1
+        if np.isfinite(qmass):
+            qmass_list.append(float(qmass))
+        vout_val[i, :] = Vout
+
+    if val_n > 0:
+        np.save(run_dir / f"0_vout_val_epoch{epoch}.npy", vout_val)
+        np.save(run_dir / f"0_val_confusion_epoch{epoch}.npy", confusion)
+
+    diag = {
+        "val_reloads": float(reloads),
+        "val_nonfinite": float(nonfinite),
+        "val_qmass_mean": float(np.mean(qmass_list)) if qmass_list else float("nan"),
+    }
+    acc = (correct / total) if total else float("nan")
+    loss = (loss_sum / count) if count else float("nan")
+    return float(acc), float(loss), diag
+
+
+def save_generation_samples(
+    *,
+    args: argparse.Namespace,
+    ng: NgSpiceShared,
+    topo: DenseIOTopology,
+    vg_unique: np.ndarray,
+    netlist: str,
+    val_ctx: np.ndarray,
+    val_y: np.ndarray,
+    run_dir: Path,
+    epoch: int,
+):
+    n = min(int(args.sample_prompts), len(val_ctx))
+    if n <= 0:
+        return
+    lines: List[str] = []
+    prompt_indices = np.linspace(0, len(val_ctx) - 1, n, dtype=int)
+    for j, idx in enumerate(prompt_indices.tolist()):
+        seed_ids = [int(v) for v in val_ctx[idx].tolist()]
+        seed_words = decode_context_ids_to_words(seed_ids)
+        generated = greedy_generate_from_context(
+            ng=ng,
+            topo=topo,
+            vg_unique=vg_unique,
+            netlist=netlist,
+            seed_ctx_ids=seed_ids,
+            max_len=int(args.sample_max_len),
+        )
+        target = OUTPUT_ID_TO_WORD[int(val_y[idx])]
+        q_target = one_hot(int(val_y[idx]), topo.K)
+        seed_clean = [w for w in seed_words if w != "<BOS>"]
+        gen_clean = [w for w in generated if w != "<BOS>"]
+        lines.append(f"[{j}] seed={' '.join(seed_clean) if seed_clean else '<BOS>'}")
+        lines.append(f"    observed_next={target}")
+        lines.append(f"    target_dist_top={top_words_from_q(q_target, topk=4)}")
+        lines.append(f"    generated={' '.join(gen_clean) if gen_clean else '<empty>'}")
+    (run_dir / f"samples_epoch{epoch}.txt").write_text("\n".join(lines) + "\n")
+
+
+def build_worker_cmd(args: argparse.Namespace, run_dir: Path, epoch: int) -> List[str]:
+    cmd = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        str(int(args.seed)),
+        "--epochs", str(int(args.epochs)),
+        "--gamma", str(float(args.gamma)),
+        "--delta", str(float(args.delta)),
+        "--softmax-temp", str(float(args.softmax_temp)),
+        "--vminus", str(float(args.vminus)),
+        "--vplus", str(float(args.vplus)),
+        "--num-sentences", str(int(args.num_sentences)),
+        "--min-target-count", str(int(args.min_target_count)),
+        "--max-sentence-words", str(int(args.max_sentence_words)),
+        "--val-frac", str(float(args.val_frac)),
+        "--max-train", str(int(args.max_train)),
+        "--max-val", str(int(args.max_val)),
+        "--template-mode", str(args.template_mode),
+        "--device-lib", str(args.device_lib),
+        "--body-tie", str(args.body_tie),
+        "--solver", str(args.solver),
+        "--vg-init", str(args.vg_init),
+        "--vg-init-lo", str(float(args.vg_init_lo)),
+        "--vg-init-hi", str(float(args.vg_init_hi)),
+        "--vg-init-fixed", str(float(args.vg_init_fixed)),
+        "--sample-prompts", str(int(args.sample_prompts)),
+        "--sample-max-len", str(int(args.sample_max_len)),
+        "--worker-run-dir", str(run_dir),
+        "--worker-epoch", str(int(epoch)),
+    ]
+    return cmd
+
+
+def run_worker_epoch(args: argparse.Namespace) -> None:
+    run_dir = Path(args.worker_run_dir).resolve()
+    if not run_dir.exists():
+        raise FileNotFoundError(f"Worker run directory not found: {run_dir}")
+
+    log_f = setup_logging(run_dir)
+    seed = int(args.seed)
+    epoch = int(args.worker_epoch)
+    random.seed(seed + max(epoch, 0))
+    np.random.seed(seed + max(epoch, 0))
+
+    epochs = int(args.epochs)
+    gamma = float(args.gamma)
+    delta = float(args.delta)
+    temp = float(args.softmax_temp)
+    if temp <= 0.0:
+        raise ValueError("--softmax-temp must be > 0")
+
+    vminus_val = float(args.vminus)
+    vplus_val = float(args.vplus)
+    solver = str(args.solver).lower()
+    body_res = float(RS_CLAMP)
+    body_tie = str(args.body_tie)
+    vg_init_mode = str(args.vg_init)
+    vg_init_lo = float(args.vg_init_lo)
+    vg_init_hi = float(args.vg_init_hi)
+    vg_init_single = float(args.vg_init_fixed)
+    device_lib = str(args.device_lib)
+    if not Path(device_lib).exists():
+        raise FileNotFoundError(f"Device library not found: {device_lib}")
+
+    template_mode = str(args.template_mode)
+    min_target_count = int(args.min_target_count)
+    max_sentence_words = int(args.max_sentence_words)
+
+    train_x, train_y, val_x, val_y, val_ctx = load_saved_dataset(run_dir)
+    val_n = int(val_x.shape[0])
+
+    topo = make_dense_io_topology()
+    cfg_str = build_cfg_str(
+        seed=seed,
+        gamma=gamma,
+        delta=delta,
+        temp=temp,
+        topo=topo,
+        num_sentences_actual=int(json.loads((run_dir / "run_meta.json").read_text())["dataset"]["num_sentences_actual"]),
+        min_target_count=min_target_count,
+        max_sentence_words=max_sentence_words,
+        template_mode=template_mode,
+        vminus_val=vminus_val,
+        vplus_val=vplus_val,
+        solver=solver,
+        body_tie=body_tie,
+        vg_init_mode=vg_init_mode,
+        epochs=epochs,
+        device_lib=device_lib,
+    )
+
+    prev_epoch = 0 if epoch <= 0 else epoch - 1
+    vg_path = run_dir / f"0_vg_unique_epoch{prev_epoch}.npy"
+    if not vg_path.exists():
+        raise FileNotFoundError(f"Required gate-state file not found: {vg_path}")
+    vg_unique = np.asarray(np.load(vg_path), dtype=float)
+
+    netlist = (run_dir / "netlist_initial.cir").read_text()
+    ng = NgSpiceShared(send_data=False)
+    ng.load_circuit(netlist)
+    restore_gate_voltages(ng, vg_unique)
+
+    net_nodes = [topo.negref, topo.posref] + topo.out_nodes.tolist() + topo.input_nodes.tolist()
+    nodes_list = np.asarray(sorted(set(net_nodes)), dtype=int)
+    index_of = np.full(nodes_list.max() + 1, -1, dtype=int)
+    index_of[nodes_list] = np.arange(nodes_list.size, dtype=int)
+    eD = topo.edges_D
+    eS = topo.edges_S
+
+    if epoch == 0:
+        val_acc_hist: List[float] = []
+        val_ce_hist: List[float] = []
+        v0, ce0, diag0 = eval_free_metrics(
+            ng=ng,
+            topo=topo,
+            netlist=netlist,
+            vg_unique=vg_unique,
+            val_x=val_x,
+            val_y=val_y,
+            val_n=val_n,
+            run_dir=run_dir,
+            temp=temp,
+            epoch=0,
+        )
+        val_acc_hist.append(v0)
+        val_ce_hist.append(ce0)
+        save_history_arrays(
+            run_dir,
+            tr_acc_hist=[],
+            tr_ce_hist=[],
+            val_acc_hist=val_acc_hist,
+            val_ce_hist=val_ce_hist,
+            ep_total_s=[],
+            ep_free_s=[],
+            ep_clamp_s=[],
+            ep_update_s=[],
+            reload_free_hist=[],
+            reload_clamp_hist=[],
+            nonfinite_free_hist=[],
+            nonfinite_clamp_hist=[],
+        )
+        (run_dir / "0_diag_epoch0.json").write_text(json.dumps(diag0, indent=2))
+        save_generation_samples(
+            args=args,
+            ng=ng,
+            topo=topo,
+            vg_unique=vg_unique,
+            netlist=netlist,
+            val_ctx=val_ctx,
+            val_y=val_y,
+            run_dir=run_dir,
+            epoch=0,
+        )
+        print(
+            f"[epoch 0] {cfg_str} | VAL exact_acc={v0:.4f} "
+            f"softCE={ce0:.6f} qmass_mean={diag0.get('val_qmass_mean', float('nan')):.4f}",
+            flush=True,
+        )
+        try:
+            save_plots(run_dir)
+        except Exception:
+            pass
+        try:
+            ng.remove_circuit()
+        except Exception:
+            pass
+        try:
+            log_f.flush()
+            log_f.close()
+        except Exception:
+            pass
+        return
+
+    tr_acc_hist = load_hist_list(run_dir, "0_train_acc.npy", dtype=float)
+    tr_ce_hist = load_hist_list(run_dir, "0_train_ce.npy", dtype=float)
+    val_acc_hist = load_hist_list(run_dir, "0_val_acc.npy", dtype=float)
+    val_ce_hist = load_hist_list(run_dir, "0_val_ce.npy", dtype=float)
+    ep_total_s = load_hist_list(run_dir, "0_epoch_total_s.npy", dtype=float)
+    ep_free_s = load_hist_list(run_dir, "0_epoch_free_s.npy", dtype=float)
+    ep_clamp_s = load_hist_list(run_dir, "0_epoch_clamp_s.npy", dtype=float)
+    ep_update_s = load_hist_list(run_dir, "0_epoch_update_s.npy", dtype=float)
+    reload_free_hist = load_hist_list(run_dir, "0_reload_free.npy", dtype=int)
+    reload_clamp_hist = load_hist_list(run_dir, "0_reload_clamp.npy", dtype=int)
+    nonfinite_free_hist = load_hist_list(run_dir, "0_nonfinite_free.npy", dtype=int)
+    nonfinite_clamp_hist = load_hist_list(run_dir, "0_nonfinite_clamp.npy", dtype=int)
+
+    t_ep0 = time.time()
+    order = np.arange(train_x.shape[0], dtype=int)
+    np.random.shuffle(order)
+
+    train_correct = 0
+    train_total = 0
+    ce_sum = 0.0
+    ce_count = 0
+    qmass_sum = 0.0
+    qmass_count = 0
+    reload_free = 0
+    reload_clamp = 0
+    nonfinite_free = 0
+    nonfinite_clamp = 0
+    t_free = 0.0
+    t_clamp = 0.0
+    t_update = 0.0
+    n_free = 0
+    n_clamp = 0
+
+    for idx in order:
+        ytrue = int(train_y[idx])
+        q_target = one_hot(ytrue, topo.K)
+        mk_free_all(ng, topo.K)
+
+        alter_inputs_named(ng, train_x[idx])
+        ok, dt, data, _ = run_and_read(ng, {"out": topo.out_nodes.tolist(), "nodes": nodes_list.tolist()})
+        t_free += float(dt)
+        n_free += 1
+
+        if not ok or data is None:
+            reload_free += 1
+            try:
+                ng.remove_circuit()
+            except Exception:
+                pass
+            ng.load_circuit(netlist)
+            restore_gate_voltages(ng, vg_unique)
+            mk_free_all(ng, topo.K)
+            continue
+
+        Vout = np.asarray(data["out"], dtype=float)
+        Vnodes_free = np.asarray(data["nodes"], dtype=float)
+        if (not np.all(np.isfinite(Vout))) or (not np.all(np.isfinite(Vnodes_free))):
+            nonfinite_free += 1
+            continue
+
+        pred = pred_label(Vout)
+        train_correct += int(pred == ytrue)
+        train_total += 1
+
+        ce, qmass = cross_entropy_from_outputs_soft(Vout, q_target, temp=temp)
+        ce_sum += float(ce)
+        ce_count += 1
+        if np.isfinite(qmass):
+            qmass_sum += float(qmass)
+            qmass_count += 1
+
+        clamp0 = time.time()
+        alter_outputs_xent_soft(
+            ng,
+            K=topo.K,
+            q_target=q_target,
+            Vout_free=Vout,
+            delta=delta,
+            temp=temp,
+        )
+        t_clamp += float(time.time() - clamp0)
+
+        ok, dt2, data2, _ = run_and_read(ng, {"nodes": nodes_list.tolist()})
+        t_clamp += float(dt2)
+        n_clamp += 1
+
+        if not ok or data2 is None:
+            reload_clamp += 1
+            try:
+                ng.remove_circuit()
+            except Exception:
+                pass
+            ng.load_circuit(netlist)
+            restore_gate_voltages(ng, vg_unique)
+            mk_free_all(ng, topo.K)
+            continue
+
+        Vnodes_clamp = np.asarray(data2["nodes"], dtype=float)
+        if not np.all(np.isfinite(Vnodes_clamp)):
+            nonfinite_clamp += 1
+            continue
+
+        upd0 = time.time()
+        Vd_free = Vnodes_free[index_of[eD]]
+        Vs_free = Vnodes_free[index_of[eS]]
+        Vd_c = Vnodes_clamp[index_of[eD]]
+        Vs_c = Vnodes_clamp[index_of[eS]]
+        dV_free = Vd_free - Vs_free
+        dV_c = Vd_c - Vs_c
+        update = -gamma * (dV_c**2 - dV_free**2)
+
+        cmds: List[str] = []
+        for uid in range(topo.num_edges):
+            du = float(update[uid])
+            nv = float(vg_unique[uid] + du)
+            if nv < VG_CLIP_LO:
+                nv = VG_CLIP_LO
+            elif nv > VG_CLIP_HI:
+                nv = VG_CLIP_HI
+            vg_unique[uid] = nv
+            cmds.append(f"alter VG{uid} dc = {nv:.16f}")
+        if cmds:
+            exec_chunked(ng, cmds)
+        t_update += float(time.time() - upd0)
+
+    tr_acc = (train_correct / train_total) if train_total else float("nan")
+    tr_ce = (ce_sum / ce_count) if ce_count else float("nan")
+    tr_qmass_mean = (qmass_sum / qmass_count) if qmass_count else float("nan")
+
+    tr_acc_hist.append(float(tr_acc))
+    tr_ce_hist.append(float(tr_ce))
+    reload_free_hist.append(int(reload_free))
+    reload_clamp_hist.append(int(reload_clamp))
+    nonfinite_free_hist.append(int(nonfinite_free))
+    nonfinite_clamp_hist.append(int(nonfinite_clamp))
+
+    v_acc, v_ce, diag = eval_free_metrics(
+        ng=ng,
+        topo=topo,
+        netlist=netlist,
+        vg_unique=vg_unique,
+        val_x=val_x,
+        val_y=val_y,
+        val_n=val_n,
+        run_dir=run_dir,
+        temp=temp,
+        epoch=epoch,
+    )
+    val_acc_hist.append(float(v_acc))
+    val_ce_hist.append(float(v_ce))
+    save_generation_samples(
+        args=args,
+        ng=ng,
+        topo=topo,
+        vg_unique=vg_unique,
+        netlist=netlist,
+        val_ctx=val_ctx,
+        val_y=val_y,
+        run_dir=run_dir,
+        epoch=epoch,
+    )
+
+    ep_total = float(time.time() - t_ep0)
+    ep_total_s.append(ep_total)
+    ep_free_s.append(float(t_free))
+    ep_clamp_s.append(float(t_clamp))
+    ep_update_s.append(float(t_update))
+
+    save_history_arrays(
+        run_dir,
+        tr_acc_hist=tr_acc_hist,
+        tr_ce_hist=tr_ce_hist,
+        val_acc_hist=val_acc_hist,
+        val_ce_hist=val_ce_hist,
+        ep_total_s=ep_total_s,
+        ep_free_s=ep_free_s,
+        ep_clamp_s=ep_clamp_s,
+        ep_update_s=ep_update_s,
+        reload_free_hist=reload_free_hist,
+        reload_clamp_hist=reload_clamp_hist,
+        nonfinite_free_hist=nonfinite_free_hist,
+        nonfinite_clamp_hist=nonfinite_clamp_hist,
+    )
+    np.save(run_dir / f"0_vg_unique_epoch{epoch}.npy", vg_unique.copy())
+
+    vg_stats = compute_vg_saturation_stats(vg_unique)
+    summary = {
+        "epoch": int(epoch),
+        "config": {
+            "seed": seed,
+            "gamma": gamma,
+            "delta": delta,
+            "softmax_temp": temp,
+            "rails": [vminus_val, vplus_val],
+            "solver": solver,
+            "body_tie": body_tie,
+            "body_res": body_res,
+            "rs_clamp": RS_CLAMP,
+            "vg_init": {
+                "mode": vg_init_mode,
+                "lo": vg_init_lo,
+                "hi": vg_init_hi,
+                "fixed": vg_init_single,
+            },
+            "epochs": epochs,
+            "device_include_path": device_lib,
+            "device_subckt": DEVICE_SUBCKT,
+            "loss": "onehot_cross_entropy",
+            "template_mode": template_mode,
+            "epoch_process_mode": "fresh_process",
+        },
+        "train": {
+            "exact_acc": float(tr_acc),
+            "soft_ce": float(tr_ce),
+            "qmass_mean": float(tr_qmass_mean),
+            "n_free": int(n_free),
+            "n_clamp": int(n_clamp),
+            "reload_free": int(reload_free),
+            "reload_clamp": int(reload_clamp),
+            "nonfinite_free": int(nonfinite_free),
+            "nonfinite_clamp": int(nonfinite_clamp),
+        },
+        "val": {
+            "exact_acc": float(v_acc),
+            "soft_ce": float(v_ce),
+            **{k: float(v) for k, v in diag.items()},
+        },
+        "timing_s": {
+            "epoch_total": float(ep_total),
+            "train_free": float(t_free),
+            "train_clamp": float(t_clamp),
+            "train_update": float(t_update),
+        },
+        "vg_stats": vg_stats,
+    }
+    (run_dir / f"0_epoch_summary_epoch{epoch}.json").write_text(json.dumps(summary, indent=2))
+    (run_dir / f"0_diag_epoch{epoch}.json").write_text(json.dumps(diag, indent=2))
+
+    print(
+        f"[epoch {epoch}/{epochs}] {cfg_str} | TRAIN exact_acc={tr_acc:.4f} "
+        f"softCE={tr_ce:.6f} qmass_mean={tr_qmass_mean:.4f} free={n_free} clamp={n_clamp} "
+        f"reloadF={reload_free} reloadC={reload_clamp} nonfiniteF={nonfinite_free} nonfiniteC={nonfinite_clamp}",
+        flush=True,
+    )
+    print(
+        f"[epoch {epoch}/{epochs}] {cfg_str} | VAL exact_acc={v_acc:.4f} "
+        f"softCE={v_ce:.6f} qmass_mean={diag.get('val_qmass_mean', float('nan')):.4f} | "
+        f"timing total={ep_total:.2f}s free={t_free:.2f}s clamp={t_clamp:.2f}s upd={t_update:.2f}s",
+        flush=True,
+    )
+
+    try:
+        save_plots(run_dir)
+    except Exception:
+        pass
+
+    try:
+        ng.remove_circuit()
+    except Exception:
+        pass
+    try:
+        log_f.flush()
+        log_f.close()
+    except Exception:
+        pass
+
+
+def run_controller(args: argparse.Namespace) -> None:
     seed = int(args.seed)
     random.seed(seed)
     np.random.seed(seed)
@@ -919,11 +1544,9 @@ def main():
     train_x = [np.asarray(v, dtype=float) for v in X_train]
     train_y = [int(v) for v in y_train]
     train_ctx = [tuple(c) for c in ctx_train]
-
     val_x = [np.asarray(v, dtype=float) for v in X_val]
     val_y = [int(v) for v in y_val]
     val_ctx = [tuple(c) for c in ctx_val]
-    val_n = len(val_x)
 
     topo = make_dense_io_topology()
     if topo.Nin != INPUT_DIM or topo.K != OUTPUT_DIM:
@@ -949,13 +1572,23 @@ def main():
         run_dir.mkdir(parents=True, exist_ok=True)
 
     log_f = setup_logging(run_dir)
-
-    cfg_str = (
-        f"seed={seed} gamma={gamma} delta={delta} T={temp} "
-        f"context={CONTEXT_LEN} embed_dim={TOKEN_EMBED_DIM} Nin={topo.Nin} K={topo.K} "
-        f"sentences={len(sentences)} min_target_count={min_target_count} max_words={int(args.max_sentence_words)} template={template_mode} "
-        f"rails=[{vminus_val},{vplus_val}] solver={solver} body_tie={body_tie} rs_clamp={RS_CLAMP} "
-        f"vg_init={vg_init_mode} epochs={epochs} device_include={device_lib} subckt={DEVICE_SUBCKT}"
+    cfg_str = build_cfg_str(
+        seed=seed,
+        gamma=gamma,
+        delta=delta,
+        temp=temp,
+        topo=topo,
+        num_sentences_actual=len(sentences),
+        min_target_count=min_target_count,
+        max_sentence_words=int(args.max_sentence_words),
+        template_mode=template_mode,
+        vminus_val=vminus_val,
+        vplus_val=vplus_val,
+        solver=solver,
+        body_tie=body_tie,
+        vg_init_mode=vg_init_mode,
+        epochs=epochs,
+        device_lib=device_lib,
     )
 
     print("=== RUN START (clln_dense_language32_embed4_onehotxent) ===", flush=True)
@@ -965,6 +1598,7 @@ def main():
         f"train_windows={len(train_x)} val_windows={len(val_x)} edges={topo.num_edges}",
         flush=True,
     )
+    print("epoch execution mode=fresh_process", flush=True)
 
     (run_dir / "input_vocab.json").write_text(json.dumps({"input_vocab": INPUT_VOCAB, "word_to_id": INPUT_WORD_TO_ID}, indent=2))
     (run_dir / "output_vocab.json").write_text(json.dumps({"output_vocab": OUTPUT_VOCAB, "word_to_id": OUTPUT_WORD_TO_ID}, indent=2))
@@ -1042,361 +1676,42 @@ def main():
             "sample_prompts": int(args.sample_prompts),
             "sample_max_len": int(args.sample_max_len),
         },
+        "execution": {
+            "epoch_process_mode": "fresh_process",
+            "worker_python": sys.executable,
+            "worker_dataset_files": [
+                "train_x.npy",
+                "train_y.npy",
+                "val_x.npy",
+                "val_y.npy",
+                "val_ctx.npy",
+            ],
+        },
     }
     (run_dir / "run_meta.json").write_text(json.dumps(meta, indent=2))
 
+    np.save(run_dir / "train_x.npy", np.asarray(train_x, dtype=float))
+    np.save(run_dir / "train_y.npy", np.asarray(train_y, dtype=int))
     np.save(run_dir / "val_x.npy", np.asarray(val_x, dtype=float))
     np.save(run_dir / "val_y.npy", np.asarray(val_y, dtype=int))
-
-    ng = NgSpiceShared(send_data=False)
-    ng.load_circuit(netlist)
-
-    net_nodes = [topo.negref, topo.posref] + topo.out_nodes.tolist() + topo.input_nodes.tolist()
-    nodes_list = np.asarray(sorted(set(net_nodes)), dtype=int)
-    index_of = np.full(nodes_list.max() + 1, -1, dtype=int)
-    index_of[nodes_list] = np.arange(nodes_list.size, dtype=int)
-    eD = topo.edges_D
-    eS = topo.edges_S
+    np.save(run_dir / "val_ctx.npy", np.asarray(val_ctx, dtype=int))
+    np.save(run_dir / "0_vg_unique_epoch0.npy", vg_unique.copy())
 
     try:
+        net_nodes = [topo.negref, topo.posref] + topo.out_nodes.tolist() + topo.input_nodes.tolist()
         G = nx.DiGraph()
-        G.add_nodes_from(nodes_list.tolist())
-        for d, s in zip(eD.tolist(), eS.tolist()):
+        G.add_nodes_from(sorted(set(net_nodes)))
+        for d, s in zip(topo.edges_D.tolist(), topo.edges_S.tolist()):
             G.add_edge(d, s)
         nx.write_graphml(G, str(run_dir / "0.graphml"))
     except Exception:
         pass
 
-    val_acc_hist: List[float] = []
-    val_ce_hist: List[float] = []
-    tr_acc_hist: List[float] = []
-    tr_ce_hist: List[float] = []
-    ep_total_s: List[float] = []
-    ep_free_s: List[float] = []
-    ep_clamp_s: List[float] = []
-    ep_update_s: List[float] = []
-    reload_free_hist: List[int] = []
-    reload_clamp_hist: List[int] = []
-    nonfinite_free_hist: List[int] = []
-    nonfinite_clamp_hist: List[int] = []
-
-    def eval_free_metrics(epoch: int) -> Tuple[float, float, Dict[str, float]]:
-        mk_free_all(ng, topo.K)
-        correct = 0
-        total = 0
-        loss_sum = 0.0
-        count = 0
-        reloads = 0
-        nonfinite = 0
-        qmass_list: List[float] = []
-        confusion = np.zeros((topo.K, topo.K), dtype=int)
-        vout_val = np.full((val_n, topo.K), np.nan, dtype=float) if val_n > 0 else np.zeros((0, topo.K), dtype=float)
-
-        for i, (xv, yv) in enumerate(zip(val_x, val_y)):
-            alter_inputs_named(ng, xv)
-            ok, _, data, _ = run_and_read(ng, {"out": topo.out_nodes.tolist()})
-            if not ok or data is None:
-                reloads += 1
-                try:
-                    ng.remove_circuit()
-                except Exception:
-                    pass
-                ng.load_circuit(netlist)
-                restore_gate_voltages(ng, vg_unique)
-                mk_free_all(ng, topo.K)
-                continue
-
-            Vout = np.asarray(data["out"], dtype=float)
-            if not np.all(np.isfinite(Vout)):
-                nonfinite += 1
-                continue
-
-            pred = pred_label(Vout)
-            ytrue = int(yv)
-            q_target = one_hot(ytrue, topo.K)
-
-            correct += int(pred == ytrue)
-            total += 1
-            confusion[ytrue, pred] += 1
-
-            ce, qmass = cross_entropy_from_outputs_soft(Vout, q_target, temp=temp)
-            loss_sum += float(ce)
-            count += 1
-            if np.isfinite(qmass):
-                qmass_list.append(float(qmass))
-            vout_val[i, :] = Vout
-
-        if val_n > 0:
-            np.save(run_dir / f"0_vout_val_epoch{epoch}.npy", vout_val)
-            np.save(run_dir / f"0_val_confusion_epoch{epoch}.npy", confusion)
-
-        diag = {
-            "val_reloads": float(reloads),
-            "val_nonfinite": float(nonfinite),
-            "val_qmass_mean": float(np.mean(qmass_list)) if qmass_list else float("nan"),
-        }
-        acc = (correct / total) if total else float("nan")
-        loss = (loss_sum / count) if count else float("nan")
-        return float(acc), float(loss), diag
-
-    def save_generation_samples(epoch: int):
-        n = min(int(args.sample_prompts), len(val_ctx))
-        if n <= 0:
-            return
-        lines: List[str] = []
-        prompt_indices = np.linspace(0, len(val_ctx) - 1, n, dtype=int)
-        for j, idx in enumerate(prompt_indices.tolist()):
-            seed_ids = list(val_ctx[idx])
-            seed_words = decode_context_ids_to_words(seed_ids)
-            generated = greedy_generate_from_context(
-                ng=ng,
-                topo=topo,
-                vg_unique=vg_unique,
-                netlist=netlist,
-                seed_ctx_ids=seed_ids,
-                max_len=int(args.sample_max_len),
-            )
-            target = OUTPUT_ID_TO_WORD[int(val_y[idx])]
-            q_target = one_hot(int(val_y[idx]), topo.K)
-            seed_clean = [w for w in seed_words if w != "<BOS>"]
-            gen_clean = [w for w in generated if w != "<BOS>"]
-            lines.append(f"[{j}] seed={' '.join(seed_clean) if seed_clean else '<BOS>'}")
-            lines.append(f"    observed_next={target}")
-            lines.append(f"    target_dist_top={top_words_from_q(q_target, topk=4)}")
-            lines.append(f"    generated={' '.join(gen_clean) if gen_clean else '<empty>'}")
-        (run_dir / f"samples_epoch{epoch}.txt").write_text("\n".join(lines) + "\n")
-
-    v0, ce0, diag0 = eval_free_metrics(epoch=0)
-    val_acc_hist.append(v0)
-    val_ce_hist.append(ce0)
-    np.save(run_dir / "0_val_acc.npy", np.asarray(val_acc_hist, dtype=float))
-    np.save(run_dir / "0_val_ce.npy", np.asarray(val_ce_hist, dtype=float))
-    (run_dir / "0_diag_epoch0.json").write_text(json.dumps(diag0, indent=2))
-    save_generation_samples(epoch=0)
-    print(
-        f"[epoch 0] {cfg_str} | VAL exact_acc={v0:.4f} "
-        f"softCE={ce0:.6f} qmass_mean={diag0.get('val_qmass_mean', float('nan')):.4f}",
-        flush=True,
-    )
-
-    for ep in range(1, epochs + 1):
-        t_ep0 = time.time()
-        order = np.arange(len(train_x))
-        np.random.shuffle(order)
-
-        train_correct = 0
-        train_total = 0
-        ce_sum = 0.0
-        ce_count = 0
-        qmass_sum = 0.0
-        qmass_count = 0
-        reload_free = 0
-        reload_clamp = 0
-        nonfinite_free = 0
-        nonfinite_clamp = 0
-        t_free = 0.0
-        t_clamp = 0.0
-        t_update = 0.0
-        n_free = 0
-        n_clamp = 0
-
-        for idx in order:
-            ytrue = int(train_y[idx])
-            q_target = one_hot(ytrue, topo.K)
-            mk_free_all(ng, topo.K)
-
-            alter_inputs_named(ng, train_x[idx])
-            ok, dt, data, _ = run_and_read(ng, {"out": topo.out_nodes.tolist(), "nodes": nodes_list.tolist()})
-            t_free += float(dt)
-            n_free += 1
-
-            if not ok or data is None:
-                reload_free += 1
-                try:
-                    ng.remove_circuit()
-                except Exception:
-                    pass
-                ng.load_circuit(netlist)
-                restore_gate_voltages(ng, vg_unique)
-                mk_free_all(ng, topo.K)
-                continue
-
-            Vout = np.asarray(data["out"], dtype=float)
-            Vnodes_free = np.asarray(data["nodes"], dtype=float)
-            if (not np.all(np.isfinite(Vout))) or (not np.all(np.isfinite(Vnodes_free))):
-                nonfinite_free += 1
-                continue
-
-            pred = pred_label(Vout)
-            train_correct += int(pred == ytrue)
-            train_total += 1
-
-            ce, qmass = cross_entropy_from_outputs_soft(Vout, q_target, temp=temp)
-            ce_sum += float(ce)
-            ce_count += 1
-            if np.isfinite(qmass):
-                qmass_sum += float(qmass)
-                qmass_count += 1
-
-            clamp0 = time.time()
-            alter_outputs_xent_soft(
-                ng,
-                K=topo.K,
-                q_target=q_target,
-                Vout_free=Vout,
-                delta=delta,
-                temp=temp,
-            )
-            t_clamp += float(time.time() - clamp0)
-
-            ok, dt2, data2, _ = run_and_read(ng, {"nodes": nodes_list.tolist()})
-            t_clamp += float(dt2)
-            n_clamp += 1
-
-            if not ok or data2 is None:
-                reload_clamp += 1
-                try:
-                    ng.remove_circuit()
-                except Exception:
-                    pass
-                ng.load_circuit(netlist)
-                restore_gate_voltages(ng, vg_unique)
-                mk_free_all(ng, topo.K)
-                continue
-
-            Vnodes_clamp = np.asarray(data2["nodes"], dtype=float)
-            if not np.all(np.isfinite(Vnodes_clamp)):
-                nonfinite_clamp += 1
-                continue
-
-            upd0 = time.time()
-            Vd_free = Vnodes_free[index_of[eD]]
-            Vs_free = Vnodes_free[index_of[eS]]
-            Vd_c = Vnodes_clamp[index_of[eD]]
-            Vs_c = Vnodes_clamp[index_of[eS]]
-            dV_free = Vd_free - Vs_free
-            dV_c = Vd_c - Vs_c
-            update = -gamma * (dV_c**2 - dV_free**2)
-
-            cmds: List[str] = []
-            for uid in range(topo.num_edges):
-                du = float(update[uid])
-                nv = float(vg_unique[uid] + du)
-                if nv < VG_CLIP_LO:
-                    nv = VG_CLIP_LO
-                elif nv > VG_CLIP_HI:
-                    nv = VG_CLIP_HI
-                vg_unique[uid] = nv
-                cmds.append(f"alter VG{uid} dc = {nv:.16f}")
-            if cmds:
-                exec_chunked(ng, cmds)
-            t_update += float(time.time() - upd0)
-
-        tr_acc = (train_correct / train_total) if train_total else float("nan")
-        tr_ce = (ce_sum / ce_count) if ce_count else float("nan")
-        tr_qmass_mean = (qmass_sum / qmass_count) if qmass_count else float("nan")
-
-        tr_acc_hist.append(float(tr_acc))
-        tr_ce_hist.append(float(tr_ce))
-        reload_free_hist.append(int(reload_free))
-        reload_clamp_hist.append(int(reload_clamp))
-        nonfinite_free_hist.append(int(nonfinite_free))
-        nonfinite_clamp_hist.append(int(nonfinite_clamp))
-
-        v_acc, v_ce, diag = eval_free_metrics(epoch=ep)
-        val_acc_hist.append(float(v_acc))
-        val_ce_hist.append(float(v_ce))
-        save_generation_samples(epoch=ep)
-
-        ep_total = float(time.time() - t_ep0)
-        ep_total_s.append(ep_total)
-        ep_free_s.append(float(t_free))
-        ep_clamp_s.append(float(t_clamp))
-        ep_update_s.append(float(t_update))
-
-        np.save(run_dir / "0_train_acc.npy", np.asarray(tr_acc_hist, dtype=float))
-        np.save(run_dir / "0_train_ce.npy", np.asarray(tr_ce_hist, dtype=float))
-        np.save(run_dir / "0_val_acc.npy", np.asarray(val_acc_hist, dtype=float))
-        np.save(run_dir / "0_val_ce.npy", np.asarray(val_ce_hist, dtype=float))
-        np.save(run_dir / "0_epoch_total_s.npy", np.asarray(ep_total_s, dtype=float))
-        np.save(run_dir / "0_epoch_free_s.npy", np.asarray(ep_free_s, dtype=float))
-        np.save(run_dir / "0_epoch_clamp_s.npy", np.asarray(ep_clamp_s, dtype=float))
-        np.save(run_dir / "0_epoch_update_s.npy", np.asarray(ep_update_s, dtype=float))
-        np.save(run_dir / "0_reload_free.npy", np.asarray(reload_free_hist, dtype=int))
-        np.save(run_dir / "0_reload_clamp.npy", np.asarray(reload_clamp_hist, dtype=int))
-        np.save(run_dir / "0_nonfinite_free.npy", np.asarray(nonfinite_free_hist, dtype=int))
-        np.save(run_dir / "0_nonfinite_clamp.npy", np.asarray(nonfinite_clamp_hist, dtype=int))
-        np.save(run_dir / f"0_vg_unique_epoch{ep}.npy", vg_unique.copy())
-
-        vg_stats = compute_vg_saturation_stats(vg_unique)
-        summary = {
-            "epoch": int(ep),
-            "config": {
-                "seed": seed,
-                "gamma": gamma,
-                "delta": delta,
-                "softmax_temp": temp,
-                "rails": [vminus_val, vplus_val],
-                "solver": solver,
-                "body_tie": body_tie,
-                "body_res": body_res,
-                "rs_clamp": RS_CLAMP,
-                "vg_init": {
-                    "mode": vg_init_mode,
-                    "lo": vg_init_lo,
-                    "hi": vg_init_hi,
-                    "fixed": vg_init_single,
-                },
-                "epochs": epochs,
-                "device_include_path": device_lib,
-                "device_subckt": DEVICE_SUBCKT,
-                "loss": "onehot_cross_entropy",
-                "template_mode": template_mode,
-            },
-            "train": {
-                "exact_acc": float(tr_acc),
-                "soft_ce": float(tr_ce),
-                "qmass_mean": float(tr_qmass_mean),
-                "n_free": int(n_free),
-                "n_clamp": int(n_clamp),
-                "reload_free": int(reload_free),
-                "reload_clamp": int(reload_clamp),
-                "nonfinite_free": int(nonfinite_free),
-                "nonfinite_clamp": int(nonfinite_clamp),
-            },
-            "val": {
-                "exact_acc": float(v_acc),
-                "soft_ce": float(v_ce),
-                **{k: float(v) for k, v in diag.items()},
-            },
-            "timing_s": {
-                "epoch_total": float(ep_total),
-                "train_free": float(t_free),
-                "train_clamp": float(t_clamp),
-                "train_update": float(t_update),
-            },
-            "vg_stats": vg_stats,
-        }
-        (run_dir / f"0_epoch_summary_epoch{ep}.json").write_text(json.dumps(summary, indent=2))
-        (run_dir / f"0_diag_epoch{ep}.json").write_text(json.dumps(diag, indent=2))
-
-        print(
-            f"[epoch {ep}/{epochs}] {cfg_str} | TRAIN exact_acc={tr_acc:.4f} "
-            f"softCE={tr_ce:.6f} qmass_mean={tr_qmass_mean:.4f} free={n_free} clamp={n_clamp} "
-            f"reloadF={reload_free} reloadC={reload_clamp} nonfiniteF={nonfinite_free} nonfiniteC={nonfinite_clamp}",
-            flush=True,
-        )
-        print(
-            f"[epoch {ep}/{epochs}] {cfg_str} | VAL exact_acc={v_acc:.4f} "
-            f"softCE={v_ce:.6f} qmass_mean={diag.get('val_qmass_mean', float('nan')):.4f} | "
-            f"timing total={ep_total:.2f}s free={t_free:.2f}s clamp={t_clamp:.2f}s upd={t_update:.2f}s",
-            flush=True,
-        )
-
-        try:
-            save_plots(run_dir)
-        except Exception:
-            pass
+    env = os.environ.copy()
+    env["RUN_DIR"] = str(run_dir)
+    for epoch in range(0, epochs + 1):
+        print(f"[controller] launching worker epoch={epoch}", flush=True)
+        subprocess.run(build_worker_cmd(args, run_dir, epoch), check=True, env=env)
 
     latest = results_dir / "latest"
     try:
@@ -1410,6 +1725,7 @@ def main():
         pass
 
     if args.final_val:
+        val_acc_hist = load_hist_list(run_dir, "0_val_acc.npy", dtype=float)
         print("FINAL val exact acc=", val_acc_hist[-1] if val_acc_hist else float("nan"), flush=True)
 
     print("=== RUN END (clln_dense_language32_embed4_onehotxent) ===", flush=True)
@@ -1418,6 +1734,17 @@ def main():
         log_f.close()
     except Exception:
         pass
+
+
+# -------------------------
+# Main
+# -------------------------
+def main():
+    args = parse_args()
+    if args.worker_run_dir:
+        run_worker_epoch(args)
+        return
+    run_controller(args)
 
 
 if __name__ == "__main__":
